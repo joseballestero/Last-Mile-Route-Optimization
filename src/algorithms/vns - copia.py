@@ -76,8 +76,8 @@ def vns(problem: Problem, iterations: int, alpha: float, beta: float, time_limit
 
         #Loop to create neighbourhoods
         for i in range(len(current_solution)):
-            #neighbour = neighbourhoodSWAP1(current_solution, False)
-            neighbour = neighbourhoodSWAP2(current_solution)
+            neighbour = neighbourhoodSWAP1(current_solution, True)
+            #neighbour = neighbourhoodSWAP2(current_solution)
             neighbourhood.append(neighbour)
 
         #Loop to assess each neighbourhood
@@ -105,6 +105,45 @@ def vns(problem: Problem, iterations: int, alpha: float, beta: float, time_limit
         # Update solution
         if current_solution_fitness < best_solution_fitness:
             best_solution, best_solution_value, best_solution_fitness = copy.deepcopy(current_solution), copy.deepcopy(current_solution_value), copy.deepcopy(current_solution_fitness)
+
+        #Repeat the process with another neighbourhood generation method (insercción)
+        # Neighbourhood creation
+        neighbourhood = []
+        swap = []
+        fitness_values_iteration = []  # new empty list to store the fitness values for this iteration
+
+        #Loop to create neighbourhoods
+        for i in range(len(current_solution)):
+            neighbour = neighbourhoodSWAP1(current_solution, False)
+            neighbourhood.append(neighbour)
+
+        #Loop to assess each neighbourhood
+        neighbourhood_value = []
+        for i in range(len(neighbourhood)):
+            priority, distance, routes, total_time, not_served_count = eval_solution(problem, neighbourhood[i])
+            cost = distance * problem.km_cost + len(routes) * problem.truck_cost
+            neighbourhood_value.append([cost, priority])
+            fitness_values_iteration.append(fitness(problem, alpha, beta, cost, priority, not_served_count))
+
+        # Find the best solution in the neighbourhood
+        min_fitness = float('inf')
+        min_solution = None
+        min_solution_value = None
+
+        # print(f"Neighbourhood size: {len(neighbourhood)}")
+        for i in range(len(neighbourhood)):
+            if fitness_values_iteration[i] < min_fitness:
+                min_fitness = fitness_values_iteration[i]
+                min_solution = neighbourhood[i]
+                min_solution_value = neighbourhood_value[i]
+
+        current_solution_fitness, current_solution, current_solution_value = min_fitness, min_solution, min_solution_value
+
+        # Update solution
+        if current_solution_fitness < best_solution_fitness:
+            best_solution, best_solution_value, best_solution_fitness = copy.deepcopy(current_solution), copy.deepcopy(current_solution_value), copy.deepcopy(current_solution_fitness)
+        
+
 
         # Calculate the mean, minimum, and maximum fitness values for this iteration using numpy functions
         fitness_values_iteration = fitness_values_iteration[fitness_values_iteration != float('inf')]

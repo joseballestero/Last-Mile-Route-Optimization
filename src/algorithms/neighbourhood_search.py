@@ -1,6 +1,32 @@
 import random
 
 
+def neighbourhoodSWAP(current_solution):
+    neighbourhood = []
+    for i in range(len(current_solution)):
+        for j in range(i + 1, len(current_solution)):
+            if i != j:
+                neighbour = current_solution[:]  # Copia de la solución original
+                neighbour[i], neighbour[j] = neighbour[j], neighbour[i]  # Intercambio de elementos
+                neighbourhood.append(neighbour)
+    return neighbourhood
+
+
+
+def neighbourhoodINSERT(current_solution):
+    neighbourhood = []
+    for i in range(len(current_solution)):
+        for j in range(len(current_solution)):
+            if i != j:
+                neighbour = current_solution[:]  # Copia de la solución original
+                element = neighbour.pop(i)  # Sacamos el elemento en la posición i
+                neighbour.insert(j, element)  # Insertamos el elemento en la posición j
+                neighbourhood.append(neighbour)
+    return neighbourhood
+
+
+
+
 def neighbourhoodSWAP1(current_solution, condition):
     
     if condition:
