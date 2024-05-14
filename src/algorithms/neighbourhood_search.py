@@ -12,6 +12,18 @@ def neighbourhoodSWAP(current_solution):
     return neighbourhood
 
 
+def neighbourhoodDoubleSWAP(current_solution):
+    neighbourhood = []
+    for i in range(len(current_solution)):
+        for j in range(i + 1, len(current_solution)):
+            for k in range(j + 1, len(current_solution)):
+                if i != j and j !=k:
+                    neighbour = current_solution[:]  # Copia de la solución original
+                    neighbour[i], neighbour[j], neighbour[k] = neighbour[j], neighbour[k], neighbour[i]  # Intercambio de elementos
+                    neighbourhood.append(neighbour)
+    return neighbourhood
+
+
 
 def neighbourhoodINSERT(current_solution):
     neighbourhood = []

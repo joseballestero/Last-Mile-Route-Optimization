@@ -80,7 +80,8 @@ def vnd(problem: Problem, alpha: float, beta: float, time_limit: int = float('in
         fitness_values_iteration = []  # new empty list to store the fitness values for this iteration
         iterations += 1
         #To create neighbourhoods
-        neighbourhood = neighbourhoodSWAP(current_solution)
+        #neighbourhood = neighbourhoodSWAP(current_solution)
+        neighbourhood = neighbourhoodDoubleSWAP(current_solution)
         contadorSWAP += 1
 
         #Loop to assess each neighbourhood
