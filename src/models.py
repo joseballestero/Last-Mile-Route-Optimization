@@ -671,7 +671,7 @@ class Problem:
             'LOCKER': 0.5,
             'SHOP': 0.5
         }
-
+        
         for order in self.orders:
             for option in order.delivery_options:
                 dp, priority = option[0], option[1]
@@ -710,7 +710,7 @@ class Problem:
                     self.dict_tw_distance[point1, point2] = tw_dist(self.dict_twe[point1], self.dict_twl[point1], self.dict_twe[point2], self.dict_twl[point2])
                 else:
                     self.dict_tw_distance[point1, point2] = 0
-
+                    
     def create_list_of_options(self):
         """
         Create a list with every tuple (order,option)

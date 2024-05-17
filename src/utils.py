@@ -301,6 +301,126 @@ def read_solution_file(file_path: str, problem: Problem):
     return solution, stats
 
 
+
+# def eval_solution(problem: Problem, solution: list):
+#     """
+#     Returns a solution evaluation.
+
+#     Parameters:
+#         problem : Problem
+#             Problem instance.
+#         solution : list
+#             Vector solution. List of delivery options.
+
+#     Returns:
+#         priority : float
+#             Total priority of the solution.
+#         distance : float
+#             Total distance of the solution.
+#         routes : list
+#             List of routes. Each route is a list of delivery points.
+#         delivery_times : list
+#             List of delivery times for each route.
+#         total_time : float
+#             Total time of the solution.
+#         not_served_count : int
+#             Number of orders not served.
+#     """
+#     start = time.time()
+
+#     routes = []
+#     served = {order.id: 0 for order in problem.orders}
+#     visited = set()  # Keep track of visited destinations
+#     capacity = copy.deepcopy(problem.dict_capacity)
+#     delivery_times = []
+
+#     route = [(None, 'DEPOT')]
+#     route_arrival = [problem.dict_twe['DEPOT']]
+#     route_initial_time = [problem.dict_twe['DEPOT']]
+#     route_departure = [problem.dict_twe['DEPOT']]
+#     route_delivery_times = []
+#     distance = 0
+#     total_time = 0
+#     priority = 0
+
+#     ind = 0
+#     while ind < len(solution):
+#         option = solution[ind]
+#         order, dp = option
+#         last_dp = route[-1][1]
+
+#         if not served[order] and capacity[dp] != 0 and dp not in visited:
+#             arrival_time = route_departure[-1] + problem.dict_distance[(last_dp, dp)] * 60 / problem.truck_speed
+#             if isinstance(problem.dict_twe[dp], list) and isinstance(problem.dict_twl[dp], list):
+#                 for te, tl in zip(problem.dict_twe[dp], problem.dict_twl[dp]):
+#                     initial_time = max(arrival_time, float(te))
+#                     twe, twl = te, tl
+#                     if initial_time <= tl:
+#                         break
+#             else:
+#                 twe, twl = problem.dict_twe[dp], problem.dict_twl[dp]
+#                 initial_time = max(arrival_time,  twe)
+
+#             delivery_time = 0
+#             if dp != last_dp:
+#                 delivery_time += problem.dict_delivery_time['DEFAULT']
+#             if 'H' == dp[0]:
+#                 delivery_time += problem.dict_delivery_time['HOME']
+#             elif 'L' == dp[0]:
+#                 delivery_time += problem.dict_delivery_time['LOCKER']
+#             elif 'S' == dp[0]:
+#                 delivery_time += problem.dict_delivery_time['SHOP']
+
+#             departure_time = initial_time + delivery_time
+#             arrival_time_depot = departure_time + problem.dict_distance[(dp, 'DEPOT')] * 60 / problem.truck_speed
+#             if arrival_time <= twl and arrival_time_depot <= problem.dict_twl['DEPOT']:
+#                 distance += problem.dict_distance[(last_dp, dp)]
+#                 total_time += problem.dict_distance[(last_dp, dp)] * 60 / problem.truck_speed
+#                 priority += problem.dict_priority[option]
+#                 route.append(option)
+#                 route_arrival.append(arrival_time)
+#                 route_initial_time.append(initial_time)
+#                 route_departure.append(departure_time)
+#                 route_delivery_times.append(round(departure_time, 2))
+#                 served[order] = 1
+#                 visited.add(dp)  # Mark destination as visited
+#                 capacity[dp] -= 1
+#                 ind += 1
+#             else:
+#                 if len(route) > 1 and last_dp != 'DEPOT':
+#                     distance += problem.dict_distance[(last_dp, 'DEPOT')]
+#                     total_time += problem.dict_distance[(last_dp, 'DEPOT')] * 60 / problem.truck_speed
+#                     route.append((None, 'DEPOT'))
+#                     routes.append(route)
+#                     delivery_times.append(route_delivery_times)
+#                     route = [(None, 'DEPOT')]
+#                     route_arrival = [problem.dict_twe['DEPOT']]
+#                     route_initial_time = [problem.dict_twe['DEPOT']]
+#                     route_departure = [problem.dict_twe['DEPOT']]
+#                     route_delivery_times = []
+#                 else:
+#                     # DP is not reachable
+#                     ind += 1
+#         else:
+#             ind += 1
+
+#         if ind + 1 == len(solution):
+#             distance += problem.dict_distance[(last_dp, 'DEPOT')]
+#             total_time += problem.dict_distance[(last_dp, 'DEPOT')] * 60 / problem.truck_speed
+#             route.append((None, 'DEPOT'))
+#             routes.append(route)
+#             delivery_times.append(route_delivery_times)
+
+#     not_served_count = sum(1 for x in served.values() if x == 0)
+#     # if not_served_count > 0:
+#     #     raise Exception("Invalid solution: " + str(not_served_count) + " orders could not be served.")
+
+#     # print("Time (seconds): ", time.time() - start)
+
+#     return priority, distance, routes, total_time, not_served_count
+
+
+
 def eval_solution(problem: Problem, solution: list):
     """
     Returns a solution evaluation.
@@ -952,3 +1072,34 @@ def export_to_excel(wb, name, *args):
     
     # Guardar el libro de trabajo en el archivo especificado
     wb.save(name)
+    
+    
+def plot_clusters(destinos, labels):
+    
+    #Representar clusters
+    # Convertir las ubicaciones a formato numpy para facilidad de uso con matplotlib
+    coords = np.array([[point[0], point[1]] for point in destinos])
+    print(f'coords shape: {coords.shape}')
+    
+    # Representar los puntos de entrega con diferentes colores según los clusters
+    plt.figure(figsize=(10, 8))
+    unique_labels = np.unique(labels)
+    
+    # Utilizar un mapa de colores con suficiente diversidad para los clusters
+    colors = plt.cm.get_cmap('tab20', len(unique_labels))
+    
+    for label in unique_labels:
+        cluster_points = coords[labels == label]
+        print(f'Cluster {label} points shape: {cluster_points.shape}')
+        
+        plt.scatter(cluster_points[:, 0], cluster_points[:, 1], label=f'Cluster {label}', color=colors(label / len(unique_labels)))
+    
+        
+    plt.title('Delivery Points Clusters')
+    plt.xlabel('X Coordinate')
+    plt.ylabel('Y Coordinate')
+    plt.legend()
+    plt.show()
+        
+    
+    

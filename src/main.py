@@ -6,6 +6,10 @@ from openpyxl import Workbook
 import openpyxl
 
 
+# Limitar el número de threads para evitar advertencias de MKL
+os.environ["OMP_NUM_THREADS"] = "1"
+os.environ["MKL_NUM_THREADS"] = "1"
+
 # Read problem from file
 
 problem = read_problem_file("./problem_files/3H_100/txt/3H_20_1.txt")
@@ -29,7 +33,7 @@ excel_document = openpyxl.load_workbook(name, data_only=True)
     #Parameters for loop VNS
 alpha = 0.8
 beta = 0.2
-VNS_type = "SWAP and INSERT in VND"
+VNS_type = "DoubleSwap e Insert"
     
 best_solution, best_solution_value, best_solution_fitness, stats, exec_time, inicial_routes, inicial_solution_fitness, iterations = vnd(problem, alpha, beta, log=True)
 solution_obj = create_solution(problem, best_solution)
@@ -39,8 +43,8 @@ solution_obj = create_solution(problem, best_solution)
     # if (solution_obj.is_feasible(problem)):
     #     print(solution_obj, exec_time)
     #     
-save_solution(best_solution, "./solution_files/" + problem_name + "_TS_solution")
-get_solution_charts(problem, solution_obj, "./solution_files/" + problem_name + "_TS_solution", stats)
+save_solution(best_solution, "./solution_files/" + problem_name + "_TS_solution_" + str(round(best_solution_fitness, 2)))
+get_solution_charts(problem, solution_obj, "./solution_files/" + problem_name + "_TS_solution_" + str(round(best_solution_fitness, 2)), stats)
     # else:
     #     print("Hay más rutas que trucks")
     
@@ -48,7 +52,7 @@ get_solution_charts(problem, solution_obj, "./solution_files/" + problem_name + 
 print(solution_obj, exec_time) 
        
     #Write Solution metrics on excel   
-export_to_excel(excel_document, name, iterations, alpha, beta, VNS_type, inicial_routes, len(solution_obj.routes), inicial_solution_fitness, best_solution_fitness, exec_time)
+export_to_excel(excel_document, name, iterations, alpha, beta, VNS_type, inicial_routes, len(solution_obj.routes), inicial_solution_fitness, best_solution_fitness, exec_time, len(problem.customers))
 
 
 
