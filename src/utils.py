@@ -1072,6 +1072,25 @@ def export_to_excel(wb, name, *args):
     
     # Guardar el libro de trabajo en el archivo especificado
     wb.save(name)
+
+
+def __get_option_id(option: tuple):
+    """
+    Returns the id of a delivery option.
+
+    Parameters:
+        option : tuple
+            ((DeliveryPoint | PersonalPoint, priority), Order) tuple.
+
+    Returns:
+        option_id : str
+            Id of the delivery option.
+    """
+
+    dp_id = id(option[0][0].id)
+    order_id = id(option[1].id)
+    return f"{dp_id}-{order_id}"
+
     
     
 def plot_clusters(destinos, labels):
@@ -1100,6 +1119,111 @@ def plot_clusters(destinos, labels):
     plt.ylabel('Y Coordinate')
     plt.legend()
     plt.show()
-        
+
+
+
+#Convert locations XY from delivery_points to a tupla.
+def convert_locations(problem):
+    locations = []
+    for order in problem.orders:
+        for option in order.delivery_options:
+            dp, priority = option[0], option[1]
+            locations.append([dp.loc.x, dp.loc.y])
+    return np.array(locations)          
     
+
+# Elbow method to determine optimal k
+def optimal_k(locations, max_k=10):
     
+    inertia = []
+    for k in range(1, max_k + 1):
+        kmeans = KMeans(n_clusters=k, random_state=42).fit(locations)
+        inertia.append(kmeans.inertia_)
+    
+    plt.plot(range(1, max_k + 1), inertia, 'bx-')
+    plt.xlabel('Number of clusters (k)')
+    plt.ylabel('Inertia')
+    plt.title('Elbow Method for Optimal k')
+    plt.show()
+
+    # Elige k basándote en el gráfico
+    return int(input("Enter the optimal number of clusters (k): "))
+
+
+def plot_clusters(locations, labels):
+    plt.scatter(locations[:, 0], locations[:, 1], c=labels, s=50, cmap='viridis')
+    plt.xlabel('X Coordinate')
+    plt.ylabel('Y Coordinate')
+    plt.title('Clusters of Delivery Points')
+    plt.show()
+
+
+
+
+def two_opt(route, problem):
+    def calculate_distance(route):
+        total_distance = 0
+        for i in range(len(route) - 1):
+            total_distance += problem.dict_distance[(route[i][1], route[i+1][1])]
+        return total_distance
+
+    best_route = route
+    best_distance = calculate_distance(route)
+    
+    improved = True
+    while improved:
+        improved = False
+        for i in range(1, len(route) - 2):
+            for j in range(i + 1, len(route)):
+                if j - i == 1: continue
+                new_route = route[:i] + route[i:j][::-1] + route[j:]
+                new_distance = calculate_distance(new_route)
+                if new_distance < best_distance:
+                    best_route = new_route
+                    best_distance = new_distance
+                    improved = True
+        route = best_route
+    return best_route
+
+
+def generate_initial_solution(problem, num_clusters):
+    coords = np.array([[point.x, point.y] for point in problem.dict_xy.values()])
+    kmeans = KMeans(n_clusters=num_clusters, random_state=0).fit(coords)
+    labels = kmeans.labels_
+
+    clusters = {i: [] for i in range(num_clusters)}
+    for point, label in zip(problem.list_of_options, labels):
+        clusters[label].append(point)
+
+    initial_solution = []
+    for cluster_id, points in clusters.items():
+        sorted_points = sorted(points, key=lambda x: x[0].twe)
+        route = []
+        current_capacity = problem.truck_capacity
+        for point in sorted_points:
+            if current_capacity > 0:
+                route.append((point[1].id, point[0].id))
+                current_capacity -= 1
+            else:
+                initial_solution.append(route)
+                route = [(point[1].id, point[0].id)]
+                current_capacity = problem.truck_capacity - 1
+        if route:
+            initial_solution.append(route)
+
+    return initial_solution
+
+def evaluate_and_optimize_routes(problem, initial_solution):
+    optimized_solution = []
+    total_distance = 0
+    total_priority = 0
+
+    for route in initial_solution:
+        optimized_route = two_opt(route, problem)
+        priority, distance, _, _, _ = eval_solution(problem, optimized_route)
+        optimized_solution.append(optimized_route)
+        total_distance += distance
+        total_priority += priority
+
+    return optimized_solution, total_distance, total_priority
+

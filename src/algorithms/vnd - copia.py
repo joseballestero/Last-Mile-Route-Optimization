@@ -115,8 +115,6 @@ def vnd(problem: Problem, alpha: float, beta: float, time_limit: int = float('in
         swap = []
         fitness_values_iteration = []  # new empty list to store the fitness values for this iteration
         iterations += 1
-        new_fitness = 0
-        neighbourhood_new_value = []
         #To create neighbourhoods
         #neighbourhood = neighbourhoodSWAP(current_solution)
         
@@ -127,19 +125,24 @@ def vnd(problem: Problem, alpha: float, beta: float, time_limit: int = float('in
         
         
         #Loop to assess each neighbourhood
-        neighbourhood_new_value = []
+        neighbourhood_value = []
         for i in range(len(neighbourhood)):
             priority, distance, routes, total_time, not_served_count = eval_solution(problem, neighbourhood[i])
             cost = distance * problem.km_cost + len(routes) * problem.truck_cost
-            neighbourhood_new_value = [cost, priority]
+            neighbourhood_value.append([cost, priority])
             fitness_values_iteration.append(fitness(problem, alpha, beta, cost, priority, not_served_count))
             
-            
-            if fitness_values_iteration[i] < best_solution_fitness and fitness_values_iteration[i] != null:
+        # Find the best solution in the neighbourhood
+        min_fitness = float('inf')
+        min_solution = None
+        min_solution_value = None
+        
+        # print(f"Neighbourhood size: {len(neighbourhood)}")
+        for i in range(len(neighbourhood)):
+            if fitness_values_iteration[i] < min_fitness:
                 min_fitness = fitness_values_iteration[i]
                 min_solution = neighbourhood[i]
-                min_solution_value = neighbourhood_new_value
-                break
+                min_solution_value = neighbourhood_value[i]
 
         current_solution_fitness, current_solution, current_solution_value = min_fitness, min_solution, min_solution_value
 
@@ -159,15 +162,20 @@ def vnd(problem: Problem, alpha: float, beta: float, time_limit: int = float('in
            for i in range(len(neighbourhood)):
                priority, distance, routes, total_time, not_served_count = eval_solution(problem, neighbourhood[i])
                cost = distance * problem.km_cost + len(routes) * problem.truck_cost
-               neighbourhood_new_value = [cost, priority]
+               neighbourhood_value.append([cost, priority])
                fitness_values_iteration.append(fitness(problem, alpha, beta, cost, priority, not_served_count))
-               
-               
-               if fitness_values_iteration[i] < best_solution_fitness:
+
+           # Find the best solution in the neighbourhood
+           min_fitness = float('inf')
+           min_solution = None
+           min_solution_value = None
+
+           # print(f"Neighbourhood size: {len(neighbourhood)}")
+           for i in range(len(neighbourhood)):
+               if fitness_values_iteration[i] < min_fitness:
                    min_fitness = fitness_values_iteration[i]
                    min_solution = neighbourhood[i]
-                   min_solution_value = neighbourhood_new_value
-                   break
+                   min_solution_value = neighbourhood_value[i]
 
            current_solution_fitness, current_solution, current_solution_value = min_fitness, min_solution, min_solution_value
 
