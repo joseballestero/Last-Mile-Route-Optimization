@@ -12,8 +12,8 @@ os.environ["MKL_NUM_THREADS"] = "1"
 
 # Read problem from file
 
-problem = read_problem_file("./problem_files/3H_100/txt/3H_100_1.txt")
-problem_name = "3H_100_1"
+problem = read_problem_file("./problem_files/3H_100/txt/3H_20_1.txt")
+problem_name = "3H_20_1"
 problem.create_dictionaries()
 list_opt = problem.create_list_of_options()
 
@@ -33,9 +33,9 @@ excel_document = openpyxl.load_workbook(name, data_only=True)
     #Parameters for loop VNS
 alpha = 0.8
 beta = 0.2
-VNS_type = "SWAP and INSERT - Random"
+VNS_type = "SWAP and INSERT - Kmeans"
     
-best_solution, best_solution_value, best_solution_fitness, stats, exec_time, inicial_routes, inicial_solution_fitness, iterations = vnd(problem, alpha, beta, log=True)
+best_solution, best_solution_value, best_solution_fitness, stats, exec_time, inicial_routes, inicial_solution_fitness, iterations, countSwap, countInsert = vnd(problem, alpha, beta, log=True)
 solution_obj = create_solution(problem, best_solution)
     
     #Validar metodo de comprobar rutas, is_feasible (reduced_tws)
@@ -52,7 +52,7 @@ get_solution_charts(problem, solution_obj, "./solution_files/" + problem_name + 
 print(solution_obj, exec_time) 
        
     #Write Solution metrics on excel   
-export_to_excel(excel_document, name, iterations, alpha, beta, VNS_type, inicial_routes, len(solution_obj.routes), inicial_solution_fitness, best_solution_fitness, exec_time, len(problem.customers))
+export_to_excel(excel_document, name, iterations, alpha, beta, VNS_type, inicial_routes, len(solution_obj.routes), inicial_solution_fitness, best_solution_fitness, exec_time, len(problem.customers),countSwap, countInsert)
 
 
 

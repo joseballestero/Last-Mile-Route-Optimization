@@ -78,10 +78,10 @@ def vnd(problem: Problem, alpha: float, beta: float, time_limit: int = float('in
     initial_solution = sorted_delivery_point_ids 
     
     # Randomin initial solution
-    current_solution = get_random_solution(problem)
+    #current_solution = get_random_solution(problem)
     
     
-    #current_solution = copy.deepcopy(initial_solution)
+    current_solution = copy.deepcopy(initial_solution)
        
     # Evaluate the initial random solution 
     current_priority, distance, routes, total_time, not_served_count = eval_solution(problem, current_solution)
@@ -102,8 +102,8 @@ def vnd(problem: Problem, alpha: float, beta: float, time_limit: int = float('in
     stats = []
     
     ContadorDoubleSWAP = 0
-    contadorSWAP = 0
-    contadorINSERT = 0
+    countSwap = 0
+    countInsert = 0
     bandera = 0
     iterations = 0
 
@@ -123,8 +123,8 @@ def vnd(problem: Problem, alpha: float, beta: float, time_limit: int = float('in
         
 #SWAP search   
         neighbourhood = neighbourhoodSWAP(current_solution)
-        contadorSWAP += 1
-        print("ContadorSWAP =", contadorSWAP) 
+        countSwap += 1
+        print("ContadorSWAP =", countSwap) 
         
         
         #Loop to assess each neighbourhood
@@ -150,8 +150,8 @@ def vnd(problem: Problem, alpha: float, beta: float, time_limit: int = float('in
 #INSERT search
         if out == 0:
            neighbourhood = neighbourhoodINSERT(best_solution)
-           contadorINSERT += 1
-           print("ContadorINSERT =", contadorINSERT)
+           countInsert += 1
+           print("ContadorINSERT =", countInsert)
             
            
            #Loop to assess each neighbourhood
@@ -197,10 +197,10 @@ def vnd(problem: Problem, alpha: float, beta: float, time_limit: int = float('in
     print("Prioridad = ", priority)
     print("Not_served_count =", not_served_count)
     print("ContadorDoubleSWAP =", ContadorDoubleSWAP)
-    print("ContadorSWAP =", contadorSWAP)
-    print("ContadorINSERT =", contadorINSERT)
+    print("ContadorSWAP =", countSwap)
+    print("ContadorINSERT =", countInsert)
     
-    return best_solution, best_solution_value, best_solution_fitness, stats, execution_time, inicial_routes, inicial_solution_fitness, iter
+    return best_solution, best_solution_value, best_solution_fitness, stats, execution_time, inicial_routes, inicial_solution_fitness, iter, countSwap, countInsert
 
 
 
