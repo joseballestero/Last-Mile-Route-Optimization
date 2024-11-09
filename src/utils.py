@@ -13,6 +13,8 @@ from openpyxl.utils import get_column_letter
 from matplotlib.backends.backend_pdf import PdfPages
 from models import *
 
+from sklearn.cluster import KMeans
+
 # PROBLEM FILE EXAMPLE
 
 # NUM_VEHICLES	AV_CAPAC.   TRUCK_COST  KM_COST   X_DEPOT	Y_DEPOT TW_E    TW_L
@@ -249,14 +251,23 @@ def fitness(problem: Problem, cost_weight: float, priority_weight: float, cost: 
             Fitness of the solution.
     """
 
-    max_cost = get_max_cost(problem)
-    max_priority = get_max_priority(problem)
-    min_priority = len(problem.orders)
+    max_priority = get_max_priority(problem) * 3 
+    min_priority = len(problem.orders) #La min priority es el número de ordenes (es decir, todas las entregas de prioridad 1)
+    normalized_priority = priority / max_priority
+    
+    # Imprimir las variables antes del cálculo
+    # print("=== Variables utilizadas para el cálculo de fitness ===")
+    # print(f"Coste total: {cost}")
+    # print(f"Prioridad total: {priority}")
+    # print(f"Órdenes no servidas: {not_served_count}")
+    # print(f"Coste normalizado: {normalized_cost}")
+    # print(f"Prioridad normalizada: {normalized_priority}")
+    # print(f"Peso del coste (alpha): {cost_weight}")
+    # print(f"Peso de la prioridad (beta): {priority_weight}")
+    # print(f"Órdenes no servidas: {not_served_count}")   
+    fitness_value = (cost_weight + priority_weight * normalized_priority + not_served_count * 0.01) * 100
 
-    normalized_cost = cost / max_cost
-    normalized_priority = (priority - min_priority) / (max_priority - min_priority)
-
-    return (cost_weight * normalized_cost + priority_weight * normalized_priority + 5 * not_served_count) * 100
+    return normalized_priority
 
 
 def save_solution(solution: list, file_name: str, stats: list = []):
@@ -301,239 +312,6 @@ def read_solution_file(file_path: str, problem: Problem):
     return solution, stats
 
 
-
-# def eval_solution(problem: Problem, solution: list):
-#     """
-#     Returns a solution evaluation.
-
-#     Parameters:
-#         problem : Problem
-#             Problem instance.
-#         solution : list
-#             Vector solution. List of delivery options.
-
-#     Returns:
-#         priority : float
-#             Total priority of the solution.
-#         distance : float
-#             Total distance of the solution.
-#         routes : list
-#             List of routes. Each route is a list of delivery points.
-#         delivery_times : list
-#             List of delivery times for each route.
-#         total_time : float
-#             Total time of the solution.
-#         not_served_count : int
-#             Number of orders not served.
-#     """
-#     start = time.time()
-
-#     routes = []
-#     served = {order.id: 0 for order in problem.orders}
-#     visited = set()  # Keep track of visited destinations
-#     capacity = copy.deepcopy(problem.dict_capacity)
-#     delivery_times = []
-
-#     route = [(None, 'DEPOT')]
-#     route_arrival = [problem.dict_twe['DEPOT']]
-#     route_initial_time = [problem.dict_twe['DEPOT']]
-#     route_departure = [problem.dict_twe['DEPOT']]
-#     route_delivery_times = []
-#     distance = 0
-#     total_time = 0
-#     priority = 0
-
-#     ind = 0
-#     while ind < len(solution):
-#         option = solution[ind]
-#         order, dp = option
-#         last_dp = route[-1][1]
-
-#         if not served[order] and capacity[dp] != 0 and dp not in visited:
-#             arrival_time = route_departure[-1] + problem.dict_distance[(last_dp, dp)] * 60 / problem.truck_speed
-#             if isinstance(problem.dict_twe[dp], list) and isinstance(problem.dict_twl[dp], list):
-#                 for te, tl in zip(problem.dict_twe[dp], problem.dict_twl[dp]):
-#                     initial_time = max(arrival_time, float(te))
-#                     twe, twl = te, tl
-#                     if initial_time <= tl:
-#                         break
-#             else:
-#                 twe, twl = problem.dict_twe[dp], problem.dict_twl[dp]
-#                 initial_time = max(arrival_time,  twe)
-
-#             delivery_time = 0
-#             if dp != last_dp:
-#                 delivery_time += problem.dict_delivery_time['DEFAULT']
-#             if 'H' == dp[0]:
-#                 delivery_time += problem.dict_delivery_time['HOME']
-#             elif 'L' == dp[0]:
-#                 delivery_time += problem.dict_delivery_time['LOCKER']
-#             elif 'S' == dp[0]:
-#                 delivery_time += problem.dict_delivery_time['SHOP']
-
-#             departure_time = initial_time + delivery_time
-#             arrival_time_depot = departure_time + problem.dict_distance[(dp, 'DEPOT')] * 60 / problem.truck_speed
-#             if arrival_time <= twl and arrival_time_depot <= problem.dict_twl['DEPOT']:
-#                 distance += problem.dict_distance[(last_dp, dp)]
-#                 total_time += problem.dict_distance[(last_dp, dp)] * 60 / problem.truck_speed
-#                 priority += problem.dict_priority[option]
-#                 route.append(option)
-#                 route_arrival.append(arrival_time)
-#                 route_initial_time.append(initial_time)
-#                 route_departure.append(departure_time)
-#                 route_delivery_times.append(round(departure_time, 2))
-#                 served[order] = 1
-#                 visited.add(dp)  # Mark destination as visited
-#                 capacity[dp] -= 1
-#                 ind += 1
-#             else:
-#                 if len(route) > 1 and last_dp != 'DEPOT':
-#                     distance += problem.dict_distance[(last_dp, 'DEPOT')]
-#                     total_time += problem.dict_distance[(last_dp, 'DEPOT')] * 60 / problem.truck_speed
-#                     route.append((None, 'DEPOT'))
-#                     routes.append(route)
-#                     delivery_times.append(route_delivery_times)
-#                     route = [(None, 'DEPOT')]
-#                     route_arrival = [problem.dict_twe['DEPOT']]
-#                     route_initial_time = [problem.dict_twe['DEPOT']]
-#                     route_departure = [problem.dict_twe['DEPOT']]
-#                     route_delivery_times = []
-#                 else:
-#                     # DP is not reachable
-#                     ind += 1
-#         else:
-#             ind += 1
-
-#         if ind + 1 == len(solution):
-#             distance += problem.dict_distance[(last_dp, 'DEPOT')]
-#             total_time += problem.dict_distance[(last_dp, 'DEPOT')] * 60 / problem.truck_speed
-#             route.append((None, 'DEPOT'))
-#             routes.append(route)
-#             delivery_times.append(route_delivery_times)
-
-#     not_served_count = sum(1 for x in served.values() if x == 0)
-#     # if not_served_count > 0:
-#     #     raise Exception("Invalid solution: " + str(not_served_count) + " orders could not be served.")
-
-#     # print("Time (seconds): ", time.time() - start)
-
-#     return priority, distance, routes, total_time, not_served_count
-
-
-
-def eval_solution(problem: Problem, solution: list):
-    """
-    Returns a solution evaluation.
-
-    Parameters:
-        problem : Problem
-            Problem instance.
-        solution : list
-            Vector solution. List of delivery options.
-
-    Returns:
-        priority : float
-            Total priority of the solution.
-        distance : float
-            Total distance of the solution.
-        routes : list
-            List of routes. Each route is a list of delivery points.
-        delivery_times : list
-            List of delivery times for each route.
-        total_time : float
-            Total time of the solution.
-        not_served_count : int
-            Number of orders not served.
-    """
-    start = time.time()
-
-    routes = []
-    served = {order.id: 0 for order in problem.orders}
-    capacity = copy.deepcopy(problem.dict_capacity)
-    delivery_times = []
-
-    route = [(None,'DEPOT')]
-    route_arrival = [problem.dict_twe['DEPOT']]
-    route_initial_time = [problem.dict_twe['DEPOT']]
-    route_departure = [problem.dict_twe['DEPOT']]
-    route_delivery_times = []
-    distance = 0
-    total_time = 0
-    priority = 0
-
-    ind = 0
-    while ind < len(solution):
-        option = solution[ind]
-        order, dp = option
-        last_dp = route[-1][1]
-
-        if not served[order] and capacity[dp] != 0:
-            arrival_time = route_departure[-1] + problem.dict_distance[(last_dp, dp)] * 60 / problem.truck_speed
-            if isinstance(problem.dict_twe[dp], list) and isinstance(problem.dict_twl[dp], list):
-                for te, tl in zip(problem.dict_twe[dp], problem.dict_twl[dp]):
-                    initial_time = max(arrival_time, float(te))
-                    twe, twl = te, tl
-                    if initial_time <= tl:
-                        break
-            else:
-                twe, twl = problem.dict_twe[dp], problem.dict_twl[dp]
-                initial_time = max(arrival_time,  twe)
-
-            delivery_time = 0
-            if dp != last_dp:
-                delivery_time += problem.dict_delivery_time['DEFAULT']
-            if 'H' == dp[0]:
-                delivery_time += problem.dict_delivery_time['HOME']
-            elif 'L' == dp[0]:
-                delivery_time += problem.dict_delivery_time['LOCKER']
-            elif 'S' == dp[0]:
-                delivery_time += problem.dict_delivery_time['SHOP']
-
-            departure_time = initial_time + delivery_time
-            arrival_time_depot = departure_time + problem.dict_distance[(dp, 'DEPOT')] * 60 / problem.truck_speed
-            if arrival_time <= twl and arrival_time_depot <= problem.dict_twl['DEPOT']:
-                distance += problem.dict_distance[(last_dp, dp)]
-                total_time += problem.dict_distance[(last_dp, dp)] * 60 / problem.truck_speed
-                priority += problem.dict_priority[option]
-                route.append(option)
-                route_arrival.append(arrival_time)
-                route_initial_time.append(initial_time)
-                route_departure.append(departure_time)
-                route_delivery_times.append(round(departure_time, 2))
-                served[order] = 1
-                capacity[dp] -= 1
-                ind += 1
-            else:
-                if len(route) > 1 and last_dp != 'DEPOT':
-                    distance += problem.dict_distance[(last_dp, 'DEPOT')]
-                    total_time += problem.dict_distance[(last_dp, 'DEPOT')] * 60 / problem.truck_speed
-                    route.append((None,'DEPOT'))
-                    routes.append(route)
-                    delivery_times.append(route_delivery_times)
-                    route = [(None,'DEPOT')]
-                    route_arrival = [problem.dict_twe['DEPOT']]
-                    route_initial_time = [problem.dict_twe['DEPOT']]
-                    route_departure = [problem.dict_twe['DEPOT']]
-                else:
-                    # DP is not reachable
-                    ind += 1
-        else:
-            ind += 1
-
-        if ind + 1 == len(solution):
-            distance += problem.dict_distance[(last_dp, 'DEPOT')]
-            total_time += problem.dict_distance[(last_dp, 'DEPOT')] * 60 / problem.truck_speed
-            route.append((None,'DEPOT'))
-            routes.append(route)
-            delivery_times.append(route_delivery_times)
-
-    not_served_count = sum(1 for x in served.values() if x == 0)
-    # if not_served_count > 0:
-    #     raise Exception("Invalid solution: " + str(not_served_count) + " orders could not be served.")
-
-    # print("Time (seconds): ", time.time() - start)
-
-    return priority, distance, routes, total_time, not_served_count
 
 
 def create_solution(problem: Problem, solution: list):
@@ -659,132 +437,121 @@ def create_solution(problem: Problem, solution: list):
     return solution
 
 
-def eval_solution_prob(problem: Problem, solution: list):
+def eval_solution(problem: Problem, solution: list):
     """
-    Returns a solution evaluation.
+    Evaluates a solution, ensuring all constraints are respected.
 
     Parameters:
         problem : Problem
-            Problem instance.
+            Problem instance containing all relevant data.
         solution : list
-            Vector solution. List of delivery options.
+            List of delivery options ordered by truck routes.
 
     Returns:
         priority : float
-            Total priority of the solution.
+            Total priority score of completed deliveries.
         distance : float
-            Total distance of the solution.
-        miss_prob : float
-            Average miss probability of the solution.
+            Total distance covered by all routes.
         routes : list
-            List of routes. Each route is a list of delivery points.
+            List of completed routes for each truck.
+        total_time : float
+            Total time spent on all deliveries.
+        not_served_count : int
+            Number of orders not served within constraints.
         delivery_times : list
             List of delivery times for each route.
-        total_time : float
-            Total time of the solution.
-        not_served_count : int
-            Number of orders not served.
     """
-    start = time.time()
-
+    
     routes = []
-    served = {order.id: 0 for order in problem.orders}
-    capacity = copy.deepcopy(problem.dict_capacity)
     delivery_times = []
-
-    route = [(None,'DEPOT')]
-    route_arrival = [problem.dict_twe['DEPOT']]
-    route_initial_time = [problem.dict_twe['DEPOT']]
-    route_departure = [problem.dict_twe['DEPOT']]
-    route_delivery_times = []
-    distance = 0
+    served = {order.id: 0 for order in problem.orders}  # Track served orders
+    capacity = copy.deepcopy(problem.dict_capacity)  # Track capacity for lockers and shops
+    
+    total_priority = 0
+    total_distance = 0
     total_time = 0
-    priority = 0
-    miss_probs = []
+    not_served_count = 0
+    
+    route = [(None, 'DEPOT')]
+    route_delivery_times = []
+    last_dp = 'DEPOT'
+    current_time = problem.dict_twe['DEPOT']  # Start from the truck's work window
 
-    ind = 0
-    while ind < len(solution):
-        option = solution[ind]
+    for option in solution:
         order, dp = option
-        last_dp = route[-1][1]
 
-        if not served[order] and capacity[dp] != 0:
-            arrival_time = route_departure[-1] + problem.dict_distance[(last_dp, dp)] * 60 / problem.truck_speed
-            dp_opts = []
-            if isinstance(problem.dict_twe[dp], list) and isinstance(problem.dict_twl[dp], list):
-                for te, tl, p in zip(problem.dict_twe[dp], problem.dict_twl[dp], problem.dict_twp[dp]):
-                    initial_time = max(arrival_time, float(te))
-                    twe, twl, twp = te, tl, p
-                    if initial_time <= tl:
-                        dp_opts.append((initial_time, twe, twl, twp))
-            else:
-                twe, twl, twp = problem.dict_twe[dp], problem.dict_twl[dp], problem.dict_twp[dp]
-                initial_time = max(arrival_time,  twe)
-                dp_opts.append((initial_time, twe, twl, twp))
+        # Check if the order is already served or if there's capacity for the delivery point
+        if served[order] or capacity[dp] == 0:
+            continue
 
-            delivery_time = 0
-            if dp != last_dp:
-                delivery_time += problem.dict_delivery_time['DEFAULT']
-            if 'H' == dp[0]:
-                delivery_time += problem.dict_delivery_time['HOME']
-            elif 'L' == dp[0]:
-                delivery_time += problem.dict_delivery_time['LOCKER']
-            elif 'S' == dp[0]:
-                delivery_time += problem.dict_delivery_time['SHOP']
+        # Calculate arrival and initial time based on distance from last point
+        travel_time = problem.dict_distance[(last_dp, dp)] * 60 / problem.truck_speed
+        arrival_time = current_time + travel_time
 
-            if len(dp_opts) > 0:
-                selected = False
-                for initial_time, twe, twl, twp in dp_opts:
-                    departure_time = initial_time + delivery_time
-                    arrival_time_depot = departure_time + problem.dict_distance[(dp, 'DEPOT')] * 60 / problem.truck_speed
-                    if arrival_time <= twl and arrival_time_depot <= problem.dict_twl['DEPOT']:
-                        distance += problem.dict_distance[(last_dp, dp)]
-                        total_time += problem.dict_distance[(last_dp, dp)] * 60 / problem.truck_speed
-                        priority += problem.dict_priority[option]
-                        route.append(option)
-                        route_arrival.append(arrival_time)
-                        route_initial_time.append(initial_time)
-                        route_departure.append(departure_time)
-                        route_delivery_times.append(round(departure_time, 2))
-                        served[order] = 1
-                        capacity[dp] -= 1
-                        miss_probs.append(1.0 - twp)
-                        ind += 1
-                        selected = True
-                        break
-                if not selected:
-                    if len(route) > 1 and last_dp != 'DEPOT':
-                        distance += problem.dict_distance[(last_dp, 'DEPOT')]
-                        total_time += problem.dict_distance[(last_dp, 'DEPOT')] * 60 / problem.truck_speed
-                        route.append((None,'DEPOT'))
-                        routes.append(route)
-                        delivery_times.append(route_delivery_times)
-                        route = [(None,'DEPOT')]
-                        route_arrival = [problem.dict_twe['DEPOT']]
-                        route_initial_time = [problem.dict_twe['DEPOT']]
-                        route_departure = [problem.dict_twe['DEPOT']]
-                        route_delivery_times = []
-                    else:
-                        # DP is not reachable
-                        ind += 1
-            else:
-                ind += 1
+        # Determine if dp has multiple time windows
+        if isinstance(problem.dict_twe[dp], list):
+            valid_window = False
+            for twe, twl in zip(problem.dict_twe[dp], problem.dict_twl[dp]):
+                initial_time = max(arrival_time, twe)
+                if initial_time <= twl:
+                    valid_window = True
+                    break
+            if not valid_window:
+                not_served_count += 1
+                continue  # Skip this delivery if no valid time window is found
         else:
-            ind += 1
+            twe, twl = problem.dict_twe[dp], problem.dict_twl[dp]
+            initial_time = max(arrival_time, twe)
+            if initial_time > twl:
+                not_served_count += 1
+                continue  # Skip if not within a valid window
+        
+        # Check if the delivery falls within the truck's work window
+        if initial_time + problem.dict_delivery_time['DEFAULT'] > problem.dict_twl['DEPOT']:
+            not_served_count += 1
+            continue
+        
+        # Calculate delivery time at this point
+        delivery_time = problem.dict_delivery_time.get(dp[0], problem.dict_delivery_time['DEFAULT'])
 
-        if ind + 1 == len(solution):
-            distance += problem.dict_distance[(last_dp, 'DEPOT')]
-            total_time += problem.dict_distance[(last_dp, 'DEPOT')] * 60 / problem.truck_speed
-            route.append((None,'DEPOT'))
-            routes.append(route)
-            delivery_times.append(route_delivery_times)
+        # Update total time, distance, and priority if delivery is valid
+        current_time = initial_time + delivery_time
+        if dp != last_dp:
+            # Add distance and travel time only if changing location
+            total_distance += problem.dict_distance[(last_dp, dp)]
+            total_time += travel_time
+        total_time += delivery_time
+        
+        # Update route, delivery info, and counters
+        route.append(option)
+        route_delivery_times.append(round(current_time, 2))
+        served[order] = 1
+        capacity[dp] -= 1
+        total_priority += problem.dict_priority[option]
+        
+        last_dp = dp
 
-    not_served_count = sum(1 for x in served.values() if x == 0)
-    miss_prob = np.mean(miss_probs)
+    # End route by returning to depot if there were any deliveries made
+    if len(route) > 1:
+        total_distance += problem.dict_distance[(last_dp, 'DEPOT')]
+        total_time += problem.dict_distance[(last_dp, 'DEPOT')] * 60 / problem.truck_speed
+        route.append((None, 'DEPOT'))
+        routes.append(route)
+        delivery_times.append(route_delivery_times)
+    
+    # Ensure all orders that remain unserved are counted correctly
+    not_served_count += sum(1 for order_id, served_flag in served.items() if served_flag == 0)
 
-    # print("Time (seconds): ", time.time() - start)
+    # Final verification to ensure all orders were considered
+    total_orders = len(problem.orders)
+    served_orders = total_orders - not_served_count
 
-    return priority, distance, miss_prob, routes, delivery_times, total_time, not_served_count
+
+    return total_priority, total_distance, routes, total_time, not_served_count, delivery_times
+
+
+
+
 
 
 def simulate_routes(problem: Problem, routes: list, delivery_times: list, dict_delivery_success = None, log: bool = False):
@@ -1024,7 +791,7 @@ def get_max_cost(problem: Problem):
 
     max_cost = 0.0
     initial_options = problem.create_list_of_options()
-    priority, distance, routes, total_time, not_served_count = eval_solution(problem, initial_options)
+    priority, distance, routes, total_time, not_served_count, delivery_times = eval_solution(problem, initial_options)
 
     cost = distance * problem.km_cost + len(routes) * problem.truck_cost
     max_cost = 1.3 * cost
@@ -1033,26 +800,26 @@ def get_max_cost(problem: Problem):
     return max_cost
 
 
-def get_max_priority(problem: Problem):
-    """
-    Returns the maximum priority of the problem.
+# def get_max_priority(problem: Problem):
+#     """
+#     Returns the maximum priority of the problem.
 
-    Parameters:
-        problem : Problem
-            Problem instance.
+#     Parameters:
+#         problem : Problem
+#             Problem instance.
 
-    Returns:
-        max_priority : float
-            Maximum priority of the problem.
-    """
+#     Returns:
+#         max_priority : float
+#             Maximum priority of the problem.
+#     """
 
-    max_priority = 0
+#     max_priority = 0
 
-    for order in problem.orders:
-        order_priority = len(order.delivery_options)
-        max_priority += order_priority
+#     for order in problem.orders:
+#         order_priority = len(order.delivery_options)
+#         max_priority += order_priority
 
-    return max_priority
+#     return max_priority
 
 
 def export_to_excel(wb, name, *args):
@@ -1226,4 +993,623 @@ def evaluate_and_optimize_routes(problem, initial_solution):
         total_priority += priority
 
     return optimized_solution, total_distance, total_priority
+
+
+
+def get_max_priority(problem: Problem):
+    """
+    Returns the maximum priority of the problem.
+
+    Parameters:
+        problem : Problem
+            Problem instance.
+
+    Returns:
+        max_priority : float
+            Maximum priority of the problem.
+    """
+
+    max_priority = 0
+
+    for order in problem.orders:
+        order_priority = len(order.delivery_options)
+        max_priority += order_priority
+
+    return max_priority
+
+
+
+
+import numpy as np
+from sklearn.cluster import KMeans
+import matplotlib.pyplot as plt
+
+def apply_kmeans(problem, num_vehicles, alpha, beta, gamma, max_time_per_vehicle=480, plot_name="kmeans_clusters"):
+    """
+    Apply K-Means clustering to assign delivery points to different vehicles based on location.
+
+    Parameters:
+        problem : Problem
+            The problem instance containing delivery points.
+        num_vehicles : int
+            Number of vehicles (trucks) available.
+        alpha: float
+            Weight for distance in the cost function.
+        beta: float
+            Weight for waiting time in the cost function.
+        gamma: float
+            Weight for priority in the cost function.
+        max_time_per_vehicle: int
+            Maximum time each vehicle can work in minutes (e.g., 480 minutes for 8 hours).
+
+    Returns:
+        clustered_solution : dict
+            Dictionary with vehicle ID as key and list of delivery points as values.
+    """
+    delivery_coords = []
+    delivery_points = []
+
+    # Collect the coordinates and delivery points for clustering
+    for order in problem.orders:
+        for option in order.delivery_options:
+            dp = option[0]  # Delivery point
+            delivery_coords.append([dp.loc.x, dp.loc.y])
+            delivery_points.append((order.id, dp.id))
+
+    # Convert delivery coordinates to numpy array for K-Means
+    delivery_coords = np.array(delivery_coords)
+
+    # Apply K-Means clustering
+    kmeans = KMeans(n_clusters=num_vehicles, random_state=42).fit(delivery_coords)
+    labels = kmeans.labels_  # Cluster labels
+
+    # Assign deliveries to vehicles based on clustering
+    clustered_solution = {i: [] for i in range(num_vehicles)}
+    for i, label in enumerate(labels):
+        clustered_solution[label].append(delivery_points[i])
+
+    # Plot clusters with depot if plot_name is provided
+    plot_clusters_with_depot(problem, clustered_solution, plot_name)
+
+    return clustered_solution
+
+def assign_deliveries_to_vehicles(clustered_solution, problem, num_vehicles, max_time_per_vehicle, alpha, beta, gamma):
+    """
+    Assign deliveries to vehicles, ensuring that each vehicle works until it reaches the max time or delivers all its packages.
+    
+    Parameters:
+        clustered_solution : dict
+            Dictionary with vehicle ID as key and list of delivery points as values.
+        problem : Problem
+            The problem instance.
+        num_vehicles : int
+            Number of vehicles available.
+        max_time_per_vehicle : int
+            Maximum time each vehicle can work (in minutes).
+        alpha: float
+            Weight for distance in the cost function.
+        beta: float
+            Weight for waiting time in the cost function.
+        gamma: float
+            Weight for priority in the cost function.
+    
+    Returns:
+        final_routes : list
+            List of routes for each vehicle.
+    """
+    final_routes = []
+    initial_time = problem.dict_twe['DEPOT']
+    final_time = problem.dict_twl['DEPOT']
+    
+    # Mapear la primera letra a los tipos de destino
+    delivery_time_mapping = {
+    'H': problem.dict_delivery_time['HOME'],
+    'L': problem.dict_delivery_time['LOCKER'],
+    'S': problem.dict_delivery_time['SHOP']
+    }
+    
+    # Loop through each vehicle and assign deliveries
+    for vehicle_id in range(num_vehicles):
+        vehicle_route = []
+        current_location = 'DEPOT'
+        
+        # Set current_time to the start of the time window at the DEPOT
+        current_time = problem.dict_twe['DEPOT']  # Use the depot's start time instead of 0
+
+        delivery_points = clustered_solution[vehicle_id]
+
+        print(f"\nVehículo {vehicle_id} comienza su ruta desde {current_location} con tiempo inicial {current_time:.2f}")
+
+        while delivery_points and current_time < final_time:
+            next_option = None
+            min_cost = float('inf')
+
+            for dp_order_id, dp_id in delivery_points:
+                # Calculate distance and time to delivery point
+                distance = problem.dict_distance[(current_location, dp_id)]
+                arrival_time = current_time + (distance * 60 / problem.truck_speed)
+
+                # Get delivery windows and check if valid
+                if dp_id.startswith('S'):  # Store with multiple windows
+                    valid_window_found = False
+                    for twe, twl in zip(problem.dict_twe[dp_id], problem.dict_twl[dp_id]):
+                        waiting_time = max(0, twe - arrival_time)
+                        if arrival_time <= twl and waiting_time <= 300:
+                            valid_window_found = True
+                            break
+                    if not valid_window_found:
+                        continue
+                else:  # Single window for homes and lockers
+                    twe, twl = problem.dict_twe[dp_id], problem.dict_twl[dp_id]
+                    waiting_time = max(0, twe - arrival_time)
+                    if arrival_time > twl or waiting_time > 300:
+                        continue
+
+                # Get delivery priority
+                delivery_priority = problem.dict_priority[(dp_order_id, dp_id)]
+
+                # Calculate the cost of delivery
+                cost = (alpha * distance) + (beta * waiting_time) + (gamma * delivery_priority)
+
+                # Choose the delivery point with the lowest cost
+                if cost < min_cost:
+                    min_cost = cost
+                    next_option = (dp_order_id, dp_id)
+
+            if next_option:
+                order_id, dp_id = next_option
+                vehicle_route.append(next_option)
+                
+                # If we are at a new location, add travel time
+                if current_location != dp_id:
+                    time_to_next = problem.dict_distance[(current_location, dp_id)] * 60 / problem.truck_speed
+                    current_time += time_to_next
+                    delivery_time = problem.dict_delivery_time['DEFAULT']
+                else:
+                    delivery_time = delivery_time_mapping.get(dp_id[0], problem.dict_delivery_time['DEFAULT'])
+                # Add delivery time at the point
+                current_time += delivery_time
+                
+                # Update current location and remaining delivery points
+                current_location = dp_id
+                delivery_points = [dp for dp in delivery_points if dp != next_option]
+
+                print(f"Vehículo {vehicle_id} entrega en {dp_id}, tiempo actual {current_time:.2f}, coste {min_cost:.2f}")
+                
+                # Check if we have reached max time
+                if current_time >= final_time:
+                    print(f"Vehículo {vehicle_id} ha alcanzado el tiempo máximo de trabajo ({max_time_per_vehicle} minutos).")
+                    break
+            else:
+                # No valid deliveries left
+                print(f"Vehículo {vehicle_id} no puede realizar más entregas válidas.")
+                break
+
+        final_routes.append(vehicle_route)
+
+    return final_routes
+
+
+
+
+
+
+from utils import eval_solution, fitness
+
+from utils import eval_solution, fitness
+
+# Evaluar las rutas finales generadas por los vehículos
+def evaluate_final_solution(final_routes, problem, alpha, beta, gamma):
+    total_priority = 0
+    total_distance = 0
+    total_time = 0
+    total_orders = 0
+    #not_served_count = 0
+    delivery_times = []
+
+    # Combinar todas las rutas de los vehículos en una sola lista para evaluar
+    clustered_routes = [delivery for route in final_routes for delivery in route]
+
+    # Usamos eval_solution para evaluar todas las rutas juntas
+    priority, distance, routes, total_time, not_served_count, delivery_times = eval_solution(problem, clustered_routes)
+
+    # Calcular el coste total (por distancia y vehículos)
+    total_cost = distance * problem.km_cost + len(final_routes) * problem.truck_cost
+
+    # Calcular el fitness total
+    normalized_priority = fitness(problem, alpha, beta, total_cost, priority, not_served_count)
+
+    # print(f"\nEvaluación completa de la solución:")
+    # print(f"Prioridad total: {priority}")
+    # print(f"Distancia total: {distance} km")
+    # print(f"Tiempo total: {total_time} min")
+    # print(f"Órdenes no servidas: {not_served_count}")
+    # print(f"Coste total: {total_cost}")
+    # print(f"Fitness total: {fitness_value}")
+
+    return normalized_priority, total_cost, priority, not_served_count, total_time, distance
+
+
+
+
+
+
+
+
+
+def create_initial_solution(problem: Problem, alpha: float = 1, beta: float = 1, gamma: float = 1):
+    initial_solution = []
+    current_location = 'DEPOT'  # The truck starts at the depot
+    served_orders = set()  # Track which orders have been served
+    remaining_orders = {order.id for order in problem.orders}  # Orders that are not yet served
+
+    current_time = 0  # To track the current time at each delivery point
+
+    while remaining_orders:
+        next_option = None
+        min_cost = float('inf')
+
+        # Iterate over all possible delivery options to find the one with the lowest cost
+        for order in problem.orders:
+            if order.id in served_orders:
+                continue  # Skip already served orders
+
+            for option in order.delivery_options:
+                dp = option[0]  # delivery point (locker, home, shop, etc.)
+                if problem.dict_capacity[dp.id] > 0:  # Only consider points with capacity
+                    # Calculate arrival time at this point
+                    distance = problem.dict_distance[(current_location, dp.id)]
+                    arrival_time = current_time + (distance * 60 / problem.truck_speed)
+
+                    # Check if the time window is a list (multiple windows for stores)
+                    if isinstance(problem.dict_twe[dp.id], list):
+                        valid_window_found = False
+                        for twe, twl in zip(problem.dict_twe[dp.id], problem.dict_twl[dp.id]):
+                            waiting_time = max(0, twe - arrival_time)
+                            if arrival_time <= twl:
+                                # Update current time to the start of this valid window
+                                current_time = max(arrival_time, twe)
+                                valid_window_found = True
+                                break
+                        if not valid_window_found:
+                            continue  # Skip this option if no valid window found
+                    else:
+                        # Single time window
+                        twe, twl = problem.dict_twe[dp.id], problem.dict_twl[dp.id]
+                        waiting_time = max(0, twe - arrival_time)
+                        if arrival_time > twl:
+                            continue  # Skip if out of time window
+
+                    # Get the priority of this delivery
+                    delivery_priority = problem.dict_priority[(order.id, dp.id)]
+
+                    # Calculate the total cost for this option
+                    cost = (alpha * distance) + (beta * waiting_time) + (gamma * delivery_priority)
+
+                    # Select the option with the lowest cost
+                    if cost < min_cost:
+                        min_cost = cost
+                        next_option = (order.id, dp.id)
+
+        if not next_option:
+            # No valid options found, return to depot
+            current_location = 'DEPOT'
+            current_time += problem.dict_distance[(current_location, 'DEPOT')] * 60 / problem.truck_speed
+            break
+
+        # Update solution with the selected option (order, delivery point)
+        order_id, dp_id = next_option
+        initial_solution.append(next_option)
+
+        # Mark the order as served
+        served_orders.add(order_id)
+        remaining_orders.remove(order_id)
+
+        # Update current location and time
+        current_location = dp_id
+
+        # If the next delivery point is a locker or shop, group all possible orders
+        if dp_id.startswith('L') or dp_id.startswith('S'):  # 'L' for lockers, 'S' for stores
+            grouped_orders = [o for o in problem.orders if o.id in remaining_orders and dp_id in [opt[0].id for opt in o.delivery_options]]
+
+            for grouped_order in grouped_orders:
+                if problem.dict_capacity[dp_id] > 0:
+                    if dp_id.startswith('S'):  # Only check time window for stores
+                        arrival_time = current_time + (problem.dict_distance[(current_location, dp_id)] * 60 / problem.truck_speed)
+                        if isinstance(problem.dict_twe[dp_id], list):
+                            valid_window_found = False
+                            for twe, twl in zip(problem.dict_twe[dp_id], problem.dict_twl[dp_id]):
+                                if arrival_time <= twl:
+                                    current_time = max(arrival_time, twe)  # Update time for the window
+                                    valid_window_found = True
+                                    break
+                            if not valid_window_found:
+                                continue
+                        else:
+                            if arrival_time > problem.dict_twl[dp_id]:
+                                continue  # Skip this order if it doesn't fit the time window
+
+                    # Add grouped order to the solution
+                    initial_solution.append((grouped_order.id, dp_id))
+
+                    # Mark the order as served
+                    served_orders.add(grouped_order.id)
+                    remaining_orders.remove(grouped_order.id)
+
+                    # Decrease capacity of the locker/store
+                    problem.dict_capacity[dp_id] -= 1
+
+        # Decrease the capacity for the selected point of delivery
+        problem.dict_capacity[dp_id] -= 1
+
+    return initial_solution
+
+
+
+def create_initial_solution1(problem: Problem, alpha: float = 1, beta: float = 1, gamma: float = 1):
+    """
+    Create an initial solution where the truck selects the next delivery point
+    based on the lowest cost (distance, waiting time, and priority).
+    Supports grouping deliveries in lockers and stores, considering capacity and time windows for stores.
+
+    Parameters:
+        problem: Problem
+            The problem instance containing orders and delivery options.
+        alpha: float
+            Weight for distance in the cost function.
+        beta: float
+            Weight for waiting time in the cost function.
+        gamma: float
+            Weight for priority in the cost function.
+
+    Returns:
+        initial_solution: list
+            A list representing the initial solution, where each item is a tuple (order, delivery point).
+    """
+    initial_solution = []
+    current_location = 'DEPOT'  # The truck starts at the depot
+    served_orders = set()  # Track which orders have been served
+    remaining_orders = {order.id for order in problem.orders}  # Orders that are not yet served
+
+    current_time = 0  # To track the current time at each delivery point
+
+    while remaining_orders:
+        next_option = None
+        min_cost = float('inf')
+
+        # Iterate over all possible delivery options to find the one with the lowest cost
+        for order in problem.orders:
+            if order.id in served_orders:
+                continue  # Skip already served orders
+            
+            for option in order.delivery_options:
+                dp = option[0]  # delivery point (locker, home, shop, etc.)
+                if problem.dict_capacity[dp.id] > 0:  # Only consider points with capacity
+                    # Calculate arrival time at this point
+                    distance = problem.dict_distance[(current_location, dp.id)]
+                    arrival_time = current_time + (distance * 60 / problem.truck_speed)
+
+                    # Check if the time window is a list (multiple windows)
+                    if isinstance(problem.dict_twe[dp.id], list):
+                        # Find the first valid time window
+                        valid_window_found = False
+                        for twe, twl in zip(problem.dict_twe[dp.id], problem.dict_twl[dp.id]):
+                            waiting_time = max(0, twe - arrival_time)
+                            if arrival_time <= twl:
+                                valid_window_found = True
+                                break
+                        if not valid_window_found:
+                            continue  # Skip this option if no valid window found
+                    else:
+                        # Single time window
+                        twe, twl = problem.dict_twe[dp.id], problem.dict_twl[dp.id]
+                        waiting_time = max(0, twe - arrival_time)
+                        if arrival_time > twl:
+                            continue  # Skip if out of time window
+
+                    # Get the priority of this delivery
+                    delivery_priority = problem.dict_priority[(order.id, dp.id)]
+
+                    # Calculate the total cost for this option
+                    cost = (alpha * distance) + (beta * waiting_time) + (gamma * delivery_priority)
+
+                    # Select the option with the lowest cost
+                    if cost < min_cost:
+                        min_cost = cost
+                        next_option = (order.id, dp.id)
+
+        if not next_option:
+            # No valid options found, return to depot
+            current_location = 'DEPOT'
+            current_time += problem.dict_distance[(current_location, 'DEPOT')] * 60 / problem.truck_speed
+            break
+
+        # Update solution with the selected option (order, delivery point)
+        order_id, dp_id = next_option
+        initial_solution.append(next_option)
+
+        # Mark the order as served
+        served_orders.add(order_id)
+        remaining_orders.remove(order_id)
+
+        # Update current location and time
+        current_location = dp_id
+        current_time += problem.dict_distance[(current_location, dp_id)] * 60 / problem.truck_speed
+
+        # If the next delivery point is a locker or shop, group all possible orders
+        if dp_id.startswith('L') or dp_id.startswith('S'):  # 'L' for lockers, 'S' for stores
+            grouped_orders = [o for o in problem.orders if o.id in remaining_orders and dp_id in [opt[0].id for opt in o.delivery_options]]
+            
+            for grouped_order in grouped_orders:
+                if problem.dict_capacity[dp_id] > 0:
+                    if dp_id.startswith('S'):  # Only check time window for stores
+                        arrival_time = current_time + (problem.dict_distance[(current_location, dp_id)] * 60 / problem.truck_speed)
+                        if isinstance(problem.dict_twe[dp_id], list):
+                            valid_window_found = False
+                            for twe, twl in zip(problem.dict_twe[dp_id], problem.dict_twl[dp_id]):
+                                if arrival_time <= twl:
+                                    valid_window_found = True
+                                    break
+                            if not valid_window_found:
+                                continue
+                        else:
+                            if arrival_time > problem.dict_twl[dp_id]:
+                                continue  # Skip this order if it doesn't fit the time window
+
+                    # Add grouped order to the solution
+                    initial_solution.append((grouped_order.id, dp_id))
+
+                    # Mark the order as served
+                    served_orders.add(grouped_order.id)
+                    remaining_orders.remove(grouped_order.id)
+
+                    # Decrease capacity of the locker/store
+                    problem.dict_capacity[dp_id] -= 1
+
+        # Decrease the capacity for the selected point of delivery
+        problem.dict_capacity[dp_id] -= 1
+
+    return initial_solution
+
+
+
+def plot_clusters_with_depot(problem, clustered_solution, plot_name="kmeans_clusters"):
+    """
+    Graficar los clusters con el depot, diferenciando lockers, tiendas y hogares.
+
+    Parameters:
+        problem : Problem
+            The problem instance containing delivery points.
+        clustered_solution : dict
+            Dictionary with vehicle ID as key and list of delivery points as values.
+        plot_name : str
+            Name for the output plot file (default is 'kmeans_clusters').
+    """
+    plt.figure(figsize=(10, 7))
+
+    # Extraer la coordenada del depot
+    depot_coords = (problem.depot.loc.x, problem.depot.loc.y)
+    plt.scatter(depot_coords[0], depot_coords[1], color='black', marker='D', s=100, label='Depot', zorder=5)
+
+    # Colores para cada cluster
+    colors = plt.cm.get_cmap("Set3", len(clustered_solution))
+
+    # Graficar cada cluster
+    for vehicle_idx, route in clustered_solution.items():
+        locker_coords = []
+        shop_coords = []
+        home_coords = []
+
+        for order_id, dp_id in route:
+            dp = problem.find_dp_by_id(dp_id)
+            if dp_id.startswith('L'):
+                locker_coords.append((dp.loc.x, dp.loc.y))
+            elif dp_id.startswith('S'):
+                shop_coords.append((dp.loc.x, dp.loc.y))
+            else:  # Para ubicaciones que no sean lockers o tiendas, como hogares
+                home_coords.append((dp.loc.x, dp.loc.y))
+
+        # Convertir a arrays para graficar
+        locker_coords = np.array(locker_coords)
+        shop_coords = np.array(shop_coords)
+        home_coords = np.array(home_coords)
+
+        # Graficar lockers, tiendas y hogares para el cluster actual
+        if len(locker_coords) > 0:
+            plt.scatter(locker_coords[:, 0], locker_coords[:, 1], color='#7C92F3', marker='p', s=75, label=f'Lockers (Cluster {vehicle_idx+1})')
+        if len(shop_coords) > 0:
+            plt.scatter(shop_coords[:, 0], shop_coords[:, 1], color='#86E9AC', marker='H', s=75, label=f'Shops (Cluster {vehicle_idx+1})')
+        if len(home_coords) > 0:
+            plt.scatter(home_coords[:, 0], home_coords[:, 1], color=colors(vehicle_idx), marker='o', s=20, label=f'Home Delivery Points (Cluster {vehicle_idx+1})')
+
+    plt.xlabel('X Coordinate')
+    plt.ylabel('Y Coordinate')
+    plt.title('Clustered Delivery Points with Depot')
+    plt.legend(loc='upper right')
+    plt.grid(True)
+
+    # Guardar el gráfico con el nombre proporcionado
+    plt.savefig(f"{plot_name}.png", format="png")
+    plt.show()
+
+from datetime import datetime
+
+from datetime import datetime
+import matplotlib.pyplot as plt
+import numpy as np
+
+def plot_vehicle_routes(problem, final_routes):
+    plt.figure(figsize=(12, 10))
+    
+    # Coordenadas del depot
+    depot_coords = problem.dict_xy['DEPOT']
+    
+    # Colores para los vehículos
+    colors = plt.cm.get_cmap('tab10', len(final_routes))
+    
+    # Listas para almacenar coordenadas por tipo de ubicación
+    locker_coords = []
+    shop_coords = []
+    home_coords = []
+    
+    # Procesar las rutas de cada vehículo
+    for vehicle_idx, route in enumerate(final_routes):
+        x_coords = []
+        y_coords = []
+        
+        # Agregar coordenadas del depot al inicio
+        x_coords.append(depot_coords[0])
+        y_coords.append(depot_coords[1])
+        
+        for order_id, dp_id in route:
+            # Verificar si el punto de entrega está en el diccionario de coordenadas
+            if dp_id in problem.dict_xy:
+                dp_coords = problem.dict_xy[dp_id]
+                x_coords.append(dp_coords[0])
+                y_coords.append(dp_coords[1])
+                
+                # Clasificar el tipo de ubicación según el prefijo del ID
+                if dp_id.startswith('L'):
+                    locker_coords.append(dp_coords)
+                elif dp_id.startswith('S'):
+                    shop_coords.append(dp_coords)
+                else:
+                    home_coords.append(dp_coords)
+
+        # Volver al depot al final
+        x_coords.append(depot_coords[0])
+        y_coords.append(depot_coords[1])
+        
+        # Graficar la ruta del vehículo
+        plt.plot(x_coords, y_coords, label=f'Vehicle {vehicle_idx + 1}', color=colors(vehicle_idx))
+    
+    # Graficar los puntos según el tipo de entrega
+    if locker_coords:
+        locker_coords = np.array(locker_coords)
+        plt.scatter(locker_coords[:, 0], locker_coords[:, 1], marker='s', color='blue', label='Lockers')
+    if shop_coords:
+        shop_coords = np.array(shop_coords)
+        plt.scatter(shop_coords[:, 0], shop_coords[:, 1], marker='^', color='green', label='Shops')
+    if home_coords:
+        home_coords = np.array(home_coords)
+        plt.scatter(home_coords[:, 0], home_coords[:, 1], marker='o', color='purple', label='Homes')
+    
+    # Graficar el depot
+    plt.scatter(depot_coords[0], depot_coords[1], c='red', marker='X', s=200, label='Depot')
+    
+    # Configuraciones del gráfico
+    plt.title('Rutas de los vehículos con diferentes tipos de entrega')
+    plt.xlabel('Coordenada X')
+    plt.ylabel('Coordenada Y')
+    plt.legend(loc='upper right')
+    plt.grid(True)
+    
+    # Guardar el gráfico con nombre único
+    save_path = "./Imagenes/rutas.png"
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    unique_filename = f"{save_path}_{timestamp}.png"
+    plt.savefig(unique_filename)
+    plt.show()
+
+
 

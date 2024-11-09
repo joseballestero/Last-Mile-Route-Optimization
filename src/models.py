@@ -501,7 +501,7 @@ class Problem:
         self.customers = customers
         self.delivery_points = delivery_points
         self.orders = orders
-        self.truck_capacity = 20
+        self.truck_capacity = 100
         self.truck_cost = truck_cost
         self.km_cost = km_cost
         self.truck_speed = truck_speed
@@ -666,10 +666,10 @@ class Problem:
         self.dict_capacity = {}
         self.dict_priority = {}
         self.dict_delivery_time = {
-            'DEFAULT': 2,
-            'HOME': 3,
-            'LOCKER': 0.5,
-            'SHOP': 0.5
+            'DEFAULT': 10,
+            'HOME': 5,
+            'LOCKER': 2,
+            'SHOP': 2
         }
         
         for order in self.orders:

@@ -1,4 +1,4 @@
-""" Tabu search algorithm for the VRPTWDO problem"""
+"""Algorithm for the VRPTWDO problem"""
 
 import copy
 import sys
@@ -14,195 +14,113 @@ import numpy as np
 import random
 
 
-def vnd(problem: Problem, alpha: float, beta: float, time_limit: int = float('inf'), log: bool = False, initial_solution: list = None):
+def vns(problem, initial_routes, alpha, beta, gamma, max_time_per_vehicle, penalty_weight, apply_swap=True, apply_insert=True):
     """
-    Returns the best solution found by the tabu search algorithm.
-
+    Perform VNS optimization within each route in initial_routes by applying swap and/or insert moves.
+    
     Parameters:
         problem : Problem
-            Problem instance.
-        iterations : int
-            Number of iterations.
-        alpha : float
-            Alpha parameter.
-        beta : float
-            Beta parameter.
-        log : bool
-            If True, prints the execution time.
-        initial_solution : list
-            Initial solution as a vector. List of ((DeliveryPoint | PersonalPoint, priority), Order) tuples.
-
+            The problem instance.
+        initial_routes : list
+            List of routes for each vehicle.
+        alpha, beta, gamma : float
+            Weights for distance, waiting time, and priority in the cost function.
+        max_time_per_vehicle : int
+            Maximum time each vehicle can operate.
+        apply_swap, apply_insert : bool
+            Flags to decide if swap or insert should be applied in the neighborhood generation.
+            
     Returns:
         best_solution : list
-            Vector solution. List of ((DeliveryPoint | PersonalPoint, priority), Order) tuples.
+            Best route configuration for each vehicle.
         best_cost : float
-            Total cost of the best solution.
-        best_priority : float
-            Total priority of the best solution.
+            The cost associated with the best solution found.
     """
+    # Initialize the best solution as the initial routes and evaluate its cost
+    best_solution = initial_routes
+    if not isinstance(best_solution, list) or not all(isinstance(route, list) for route in best_solution):
+        raise ValueError("Expected final_routes to be a list of lists (routes for each vehicle).")
 
-    start_time = time.time()
-    
-    
-    # Convert locations XY into an array
-    locations = convert_locations(problem)
-    print("Número de destinos = ", len(locations))
-    
-    # Use the optimal_k function to find the appropriate value of k using the elbow inertia method
-    #num_clusters = optimal_k(locations)
-    num_clusters = 7
-    
-    # Create clusters with K-means
-    kmeans = KMeans(n_clusters=num_clusters, n_init=10, random_state=42).fit(locations)
-    
-    # Save the labels for each of the destinations
-    labels = kmeans.labels_    
-    print("Número de labels = ", len(labels))
-    
-    # Represent clusters
-    # Convert locations to numpy format for easy use with matplotlib
-    coords = np.array([[point[0], point[1]] for point in locations])
-    print(f'coords shape: {coords.shape}')
-    
-    plot_clusters(locations, labels)
-    
-    
-    # Extract the IDs and associate them with their respective clusters
-    points_with_clusters = [(point, cluster) for point, cluster in zip(problem.list_of_options, labels)]
+    # Ensure initial cost evaluation is properly structured
+    best_cost = evaluate_final_solution(best_solution, problem, alpha, beta, gamma)[1]
+    improvement = True
+    swap_count = 0
 
-    # Sort the list of points according to clusters in ascending order
-    points_with_clusters_sorted = sorted(points_with_clusters, key=lambda x: x[1])
+    while improvement:
+        improvement = False
+        neighborhoods = generate_neighborhood_within_routes(best_solution, apply_swap, apply_insert)
+        len_neigh = len(neighborhoods)
+        for neighbor in neighborhoods:
+            # Validate each route within the neighbor to ensure they are feasible
+            if all(validate_route_constraints(route, problem, max_time_per_vehicle) for route in neighbor):
+                # Calculate cost only if all routes in neighbor are feasible
+                cost = evaluate_final_solution(neighbor, problem, alpha, beta, gamma)[1]
+                not_served_count = evaluate_final_solution(neighbor, problem, alpha, beta, gamma)[3]
+                total_cost = cost + (penalty_weight * not_served_count)
+                
+                # Update best solution if we find a better cost
+                if total_cost < best_cost:
+                    best_solution = neighbor
+                    best_cost = total_cost
+                    improvement = True
+                    swap_count += 1
+                    break  # Continue with the next iteration after finding an improvement
 
-    # Extract only the IDs of the delivery points sorted
-    sorted_delivery_point_ids = [point_id for point_id, cluster in points_with_clusters_sorted]
-    initial_solution = sorted_delivery_point_ids 
-    
-    # Randomin initial solution
-    #current_solution = get_random_solution(problem)
-    
-    
-    current_solution = copy.deepcopy(initial_solution)
-       
-    # Evaluate the initial random solution 
-    current_priority, distance, routes, total_time, not_served_count = eval_solution(problem, current_solution)
-    current_cost = distance * problem.km_cost + len(routes) * problem.truck_cost
-    current_solution_fitness = fitness(problem, alpha, beta, current_cost, current_priority, not_served_count)
-    best_solution, best_solution_value, best_solution_fitness = copy.deepcopy(current_solution), [copy.deepcopy(current_cost), copy.deepcopy(current_priority)], copy.deepcopy(current_solution_fitness)
-    
-    # Create the Solution object of the initial solution
-    solution_obj2 = create_solution(problem, best_solution)
-    print("Solución inicial = ", solution_obj2)
-    
-    # Save the initial data
-    inicial_routes = len(routes)
-    inicial_solution_fitness = best_solution_fitness
-    
-    # Loop for the VND search
-    iter = 0
-    stats = []
-    
-    ContadorDoubleSWAP = 0
-    countSwap = 0
-    countInsert = 0
-    bandera = 0
-    iterations = 0
+    return best_solution, best_cost, swap_count, len_neigh
 
-    while bandera == 0 and time.time() - start_time < time_limit:
-        it_start = time.time()
 
-        # Neighbourhood creation
-        neighbourhood = []
-        swap = []
-        fitness_values_iteration = []  # new empty list to store the fitness values for this iteration
-        iterations += 1
-        new_fitness = 0
-        neighbourhood_new_value = []
-        out = 0
-        #To create neighbourhoods
-        #neighbourhood = neighbourhoodSWAP(current_solution)
+def generate_neighborhood_within_routes(routes, apply_swap, apply_insert):
+    """
+    Generate neighbors by applying swap and insert moves within each route.
+    """
+    neighborhoods = []
+
+    for route_index, route in enumerate(routes):
+        # Vecindarios específicos de la ruta actual
+        route_neighbors = []
+
+        # Aplica `swap` dentro de la ruta actual
+        if apply_swap:
+            route_neighbors.extend(neighbourhoodSWAP(route))
         
-#SWAP search   
-        neighbourhood = neighbourhoodSWAP(current_solution)
-        countSwap += 1
-        print("ContadorSWAP =", countSwap) 
+        # Aplica `insert` dentro de la ruta actual
+        if apply_insert:
+            route_neighbors.extend(neighbourhoodINSERT(route))
         
+        # Para cada vecino generado en la ruta actual, reconstruye la solución completa
+        for neighbor in route_neighbors:
+            # Crea una nueva solución basada en el vecino de la ruta actual
+            new_routes = routes[:route_index] + [neighbor] + routes[route_index+1:]
+            neighborhoods.append(new_routes)
+
+    # Verificación de que cada elemento es una lista de rutas
+    for route in neighborhoods:
+        if not all(isinstance(route_elem, list) for route_elem in route):
+            raise ValueError("Each neighborhood route should be a list of lists")
+
+    return neighborhoods
+
+
+
+
+def validate_route_constraints(route, problem, max_time_per_vehicle):
+    """
+    Validate that the route meets time constraints.
+    """
+    total_time = 0
+    for i in range(len(route) - 1):
+        delivery_point = route[i][1]
+        next_point = route[i + 1][1]
         
-        #Loop to assess each neighbourhood
-        neighbourhood_new_value = []
-        for i in range(len(neighbourhood)):
-            priority, distance, routes, total_time, not_served_count = eval_solution(problem, neighbourhood[i])
-            cost = distance * problem.km_cost + len(routes) * problem.truck_cost
-            neighbourhood_new_value = [cost, priority]
-            fitness_values_iteration.append(fitness(problem, alpha, beta, cost, priority, not_served_count))
-            #print("Fitness =", fitness_values_iteration)
-            
-            if fitness_values_iteration[i] < best_solution_fitness:
-                min_fitness = fitness_values_iteration[i]
-                min_solution = neighbourhood[i]
-                min_solution_value = neighbourhood_new_value
-                current_solution_fitness, current_solution, current_solution_value = min_fitness, min_solution, min_solution_value
-                best_solution, best_solution_value, best_solution_fitness = copy.deepcopy(current_solution), copy.deepcopy(current_solution_value), copy.deepcopy(current_solution_fitness)
-                out = 1
-                break
-
-           
-
-#INSERT search
-        if out == 0:
-           neighbourhood = neighbourhoodINSERT(best_solution)
-           countInsert += 1
-           print("ContadorINSERT =", countInsert)
-            
-           
-           #Loop to assess each neighbourhood
-           neighbourhood_value = []
-           for i in range(len(neighbourhood)):
-               priority, distance, routes, total_time, not_served_count = eval_solution(problem, neighbourhood[i])
-               cost = distance * problem.km_cost + len(routes) * problem.truck_cost
-               neighbourhood_new_value = [cost, priority]
-               fitness_values_iteration.append(fitness(problem, alpha, beta, cost, priority, not_served_count))
-               
-               
-               if fitness_values_iteration[i] < best_solution_fitness:
-                   min_fitness = fitness_values_iteration[i]
-                   min_solution = neighbourhood[i]
-                   min_solution_value = neighbourhood_new_value
-                   current_solution_fitness, current_solution, current_solution_value = min_fitness, min_solution, min_solution_value
-                   best_solution, best_solution_value, best_solution_fitness = copy.deepcopy(current_solution), copy.deepcopy(current_solution_value), copy.deepcopy(current_solution_fitness)
-                   break
-
-               else:
-                bandera = 1
-
+        # Calculate travel time
+        travel_time = problem.dict_distance[(delivery_point, next_point)] * 60 / problem.truck_speed
+        delivery_time = problem.dict_delivery_time['DEFAULT']  # Adjust if necessary for different delivery points
+        total_time += travel_time + delivery_time
         
-           
-        # Calculate the mean, minimum, and maximum fitness values for this iteration using numpy functions
-        #fitness_values_iteration = fitness_values_iteration[fitness_values_iteration != float('inf')]
-        mean_fitness = np.mean(fitness_values_iteration)
-        min_fitness = np.min(fitness_values_iteration)
-        max_fitness = np.max(fitness_values_iteration)
-
-        if log: print(f"Iteration {iter} fitness: avg = {mean_fitness:.4f}, max = {max_fitness:.4f}, min = {min_fitness:.4f}, best = {best_solution_fitness:.4f}")
-
-        # Append the mean, minimum, and maximum fitness values to the stats list as a dictionary
-        stats.append({'avg': mean_fitness, 'min': best_solution_fitness, 'max': max_fitness})
-
-        iter += 1
-        iteration_time = time.time() - it_start
-        if log: print(f"Iteration time: {iteration_time:.4f} seconds")
-
-    execution_time = time.time() - start_time
-    if log: print(f"Execution time: {execution_time:.4f} seconds")
-    
-    print("Prioridad = ", priority)
-    print("Not_served_count =", not_served_count)
-    print("ContadorDoubleSWAP =", ContadorDoubleSWAP)
-    print("ContadorSWAP =", countSwap)
-    print("ContadorINSERT =", countInsert)
-    
-    return best_solution, best_solution_value, best_solution_fitness, stats, execution_time, inicial_routes, inicial_solution_fitness, iter, countSwap, countInsert
-
-
+        # Check if exceeding max allowed time
+        if total_time > max_time_per_vehicle:
+            return False
+    return True
 
 
 
