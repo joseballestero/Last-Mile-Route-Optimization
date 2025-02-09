@@ -19,7 +19,7 @@ start_time = time.time()
 # Read problem from file
 
 #problem = read_problem_file("./problem_files/3H_100/txt/test_3.txt")
-problem = read_problem_file("./3R/problem_files/problem_25.txt")
+problem = read_problem_file("./3R/problem_files/problem_200.txt")
 problem_name = "problem"
 problem.create_dictionaries()
 list_opt = problem.create_list_of_options()
@@ -38,10 +38,10 @@ max_lockers = 5
 #generate_problem_file(100, 3, 10, (0, 6), (0, 6), 'problem', plot=False)
 
 # Parámetros del algoritmo
-alpha = 0.7  # Peso de la distancia
+alpha = 0.7  # Peso de la distancia/coste
 beta = 0.2   # Peso del tiempo de espera
 gamma = 0.5  # Peso de la prioridad
-num_vehicles = 3  # Número de camiones
+num_vehicles = 2  # Número de camiones
 max_time_per_vehicle = 480
 
 # Aplicar K-Means clustering para dividir las entregas entre los camiones
@@ -81,10 +81,6 @@ plot_vehicle_routes(problem, final_routes)
 # Definir los parámetros para VNS
 time_limit = 1800  # Tiempo límite en segundos
 log = True  # Mostrar el progreso de VNS
-
-alpha = 0.5  # Peso de la distancia
-beta = 0.5   # Peso del tiempo de espera
-gamma = 0.5
 
 # Llamada a la función VNS
 best_solution, best_solution_value, swap_count, len_neigh = vns(problem, final_routes, alpha, beta, gamma, time_limit, 0, True, False)

@@ -31,7 +31,7 @@ def generate_benchmark1(problem_type: str, n_orders: int, min_distance: int, tw_
         os.makedirs(problem_type + '/results')
     
     # Open file to write problem data
-    file = open(problem_type + '/' + 'problem_files/' + file_name + '.txt', 'w')
+    file = open(str(problem_type) + '/' + 'problem_files/' + str(file_name) + '.txt', 'w')
 
     # Generate random locations
     total_num_locations = n_homes + n_lockers + n_shops + 1  # Adding depot
@@ -828,18 +828,43 @@ def __plot_problem_from_tuples(depot_location: tuple, locker_locations: list, sh
         file_name : str
             File name.
     """
-
     plt.clf()
-    plt.scatter([loc[0] for loc in locker_locations], [loc[1]
-                for loc in locker_locations], color='#7C92F3', marker='p', s=75, label='Lockers')
-    plt.scatter([loc[0] for loc in shop_locations], [loc[1]
-                for loc in shop_locations], color='#86E9AC', marker='H', s=75, label='Shops')
-    plt.scatter([loc[0] for loc in home_locations], [loc[1] for loc in home_locations],
-                color='#F6A2A8', marker='o', s=20, label='Home Delivery Points')
-    plt.scatter(depot_location[0], depot_location[1],
-                color='black', marker='D', s=100, label='Depot')
 
-    plt.xlabel('X Coordinate')
-    plt.ylabel('Y Coordinate')
+    # Define the scatter plots for each type of location
+    locker_plot = plt.scatter(
+        [loc[0] for loc in locker_locations],
+        [loc[1] for loc in locker_locations],
+        color='#7C92F3', marker='p', s=20, label='Lockers'
+    )
+    shop_plot = plt.scatter(
+        [loc[0] for loc in shop_locations],
+        [loc[1] for loc in shop_locations],
+        color='#86E9AC', marker='H', s=20, label='Shops'
+    )
+    home_plot = plt.scatter(
+        [loc[0] for loc in home_locations],
+        [loc[1] for loc in home_locations],
+        color='#F6A2A8', marker='o', s=10, label='Home Delivery Points'
+    )
+    depot_plot = plt.scatter(
+        depot_location[0], depot_location[1],
+        color='black', marker='D', s=50, label='Depot'
+    )
+
+    # Set labels and title
+    plt.xlabel('X Coordinate (Km)')
+    plt.ylabel('Y Coordinate (Km)')
     plt.title('Problem Locations')
+
+    # Add legend with custom handles
+    plt.legend(
+        handles=[locker_plot, shop_plot, home_plot, depot_plot],
+        loc='upper right', title='Legend'
+    )
+
+    # Save the plot
     plt.savefig(file_name + '_plot.pdf', format='pdf')
+
+    # Show the plot (optional)
+    plt.show()
+

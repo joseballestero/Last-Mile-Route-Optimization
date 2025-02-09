@@ -21,7 +21,8 @@ os.environ["OMP_NUM_THREADS"] = "1"
 os.environ["MKL_NUM_THREADS"] = "1"
 
 # Leer problema
-problem = read_problem_file("./3R/problem_files/problem_500.txt")
+problem_nm = "problem_200"
+problem = read_problem_file("./3R/problem_files/" + problem_nm + ".txt")
 problem_name = "problem"
 problem.create_dictionaries()
 
@@ -29,18 +30,18 @@ problem.create_dictionaries()
 alphas = [0.5, 0.6, 0.7, 0.8]  # Variaciones de peso para la distancia
 betas = [0.1, 0.2, 0.3, 0.4]   # Variaciones de peso para el tiempo de espera
 gammas = [0.1, 0.2, 0.3]       # Variaciones de peso para la prioridad
-num_vehicles_list = [5, 10]     # Número de camiones diferentes
+num_vehicles_list = [3, 4, 5]     # Número de camiones diferentes
 max_time_per_vehicle = 480      # Máximo tiempo por vehículo (8 horas)
 
 # Configuración de archivo de resultados
 timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-result_file = f"Resultados_Pruebas_KMeans_{timestamp}.xlsx"
+result_file = f"Resultados_Pruebas_KMeans_{problem_nm}_{timestamp}.xlsx"
 workbook = Workbook()
 sheet = workbook.active
 sheet.title = "Resultados"
 
 # Añadir encabezados
-sheet.append(["Prueba", "Alfa", "Beta", "Gamma", "Num_Vehículos", "Fitness", "Coste Total", "Prioridad Total", "Órdenes No Servidas", "Tiempo Total", "Distancia Total"])
+sheet.append(["Prueba", "Alfa", "Beta", "Gamma", "Num_Vehículos", "Distancia Total", "Tiempo Total", "Prioridad Normalizada", "Coste Total", "Órdenes No Servidas"])
 
 # Ejecutar las pruebas
 test_count = 1
@@ -57,16 +58,16 @@ for alpha in alphas:
                 final_routes = assign_deliveries_to_vehicles(clustered_solution, problem, num_vehicles, max_time_per_vehicle, alpha, beta, gamma)
 
                 # Evaluar la solución final
-                fitness_value, total_cost, total_priority, not_served_count, total_time, total_distance = evaluate_final_solution(final_routes, problem, alpha, beta, gamma)
+                normalized_priority, total_cost, total_priority, not_served_count, total_time, total_distance = evaluate_final_solution(final_routes, problem, alpha, beta, gamma)
 
                 # Guardar resultados en Excel
-                sheet.append([test_count, alpha, beta, gamma, num_vehicles, fitness_value, total_cost, total_priority, not_served_count, total_time, total_distance])
+                sheet.append([test_count, alpha, beta, gamma, num_vehicles, total_distance, total_time, normalized_priority, total_cost, not_served_count])
 
                 # Imprimir resultados de la prueba actual
                 print(f"\nResultados de la prueba {test_count}:")
-                print(f"Fitness total: {fitness_value}")
                 print(f"Coste total: {total_cost}")
                 print(f"Prioridad total: {total_priority}")
+                print(f"Prioridad normalizada: {normalized_priority}")
                 print(f"Órdenes no servidas: {not_served_count}")
                 print(f"Tiempo total: {total_time} min")
                 print(f"Distancia total: {total_distance} km")
