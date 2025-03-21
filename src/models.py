@@ -2,7 +2,6 @@
 
 import uuid
 import numpy as np
-
 from enum import Enum
 from math import dist
 

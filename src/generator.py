@@ -1,11 +1,12 @@
 import math
 import os
-
+import random
+import math
 from models import *
 from utils import *
+import time
 
-
-def generate_benchmark1(problem_type: str, n_orders: int, min_distance: int, tw_duration: int, n_trucks: int, t_speed:int, x_range: tuple, y_range: tuple, truck_cost: int = None, km_cost: int = None, file_name: str = 'benchmark', max_lockers: int = 5, max_shops: int = 5, plot=False):
+def generate_benchmark(problem_type: str, n_orders: int, min_distance: int, tw_duration: int, n_trucks: int, t_speed:int, x_range: tuple, y_range: tuple, truck_cost: int = None, km_cost: int = None, file_name: str = 'benchmark', max_lockers: int = 5, max_shops: int = 5, plot=False):
 
     # Set number of delivery points based on problem type
     if problem_type == 'HL':
@@ -47,8 +48,9 @@ def generate_benchmark1(problem_type: str, n_orders: int, min_distance: int, tw_
         truck_cost = random.randint(50, 100)
     if km_cost is None:
         km_cost = random.randint(70, 100)
-    tw_e = random.choice([540, 570, 600])  # 9:00, 9:30, 10:00
+    tw_e = random.choice([600])  # 9:00, 9:30, 10:00
     tw_l = random.choice([1260, 1290, 1320])  # 21:00, 21:30, 22:00
+    depot_tw = (tw_e, tw_l)
     
     # Write depot info to file
     file.write("NUM_VEHICLES\tTRUCK_COST\tTRUCK_SPEED\tKM_COST\tX_DEPOT\tY_DEPOT\tTW_E\tTW_L\n")
@@ -65,9 +67,9 @@ def generate_benchmark1(problem_type: str, n_orders: int, min_distance: int, tw_
     if shop_locations:
         file.write("\nSHOP_ID\tX\tY\tTW_E1\tTW_L1\tTW_E2\tTW_L2\tAV_CAPAC.\n")
         for i, loc in enumerate(shop_locations[:max_shops]):  # Limit to max_shops
-            tw_e1 = random.randint(540, 660)  # Example: time window 1 for shop
+            tw_e1 = random.randint(510, 540)  # Example: time window 1 for shop
             tw_l1 = tw_e1 + tw_duration
-            tw_e2 = random.randint(780, 960)  # Time window 2
+            tw_e2 = random.randint(840, 870)  # Time window 2
             tw_l2 = tw_e2 + tw_duration
             shop_av_capac = random.randint(10, 50)
             file.write(f"S{i+1}\t{loc[0]}\t{loc[1]}\t{tw_e1}\t{tw_l1}\t{tw_e2}\t{tw_l2}\t{shop_av_capac}\n")
@@ -179,25 +181,6 @@ def generate_problem_file(n_orders: int, n_delivery_points: int, n_trucks: int, 
         __plot_problem_from_tuples(depot_location, locker_locations, shop_locations, home_locations, file_name)
 
 
-def __euclidean_distance(point1: tuple, point2: tuple):
-    """
-    Returns the Euclidean distance between two points.
-
-    Parameters:
-        point1 : tuple
-            First point.
-        point2 : tuple
-            Second point.
-
-    Returns:
-        distance : float
-            Euclidean distance between the two points.
-    """
-    x1, y1 = point1
-    x2, y2 = point2
-    return np.sqrt((x2 - x1)**2 + (y2 - y1)**2)
-
-
 def __find_central_location(locations: list):
     """
     Returns the central location (depot).
@@ -217,15 +200,45 @@ def __find_central_location(locations: list):
     return central_location
 
 
-import random
-import math
 
 def __euclidean_distance(loc1, loc2):
+    """
+    Computes the Euclidean distance between two points in a 2D space.
+
+    Parameters:
+        loc1 : tuple
+            Coordinates (x, y) of the first point.
+        loc2 : tuple
+            Coordinates (x, y) of the second point.
+
+    Returns:
+        float
+            The Euclidean distance between the two points.
+    """
+    
     return math.sqrt((loc1[0] - loc2[0]) ** 2 + (loc1[1] - loc2[1]) ** 2)
 
+
+
+
 def __find_central_location(locations):
+    """
+   Computes the central location (centroid) of a set of 2D points.
+
+   Parameters:
+       locations : list of tuples
+           A list of coordinates, where each element is a tuple (x, y).
+
+   Returns:
+       tuple
+           The centroid (mean x, mean y) of the given locations.
+
+    """
     x_coords, y_coords = zip(*locations)
     return (sum(x_coords) / len(x_coords), sum(y_coords) / len(y_coords))
+
+
+
 
 def __generate_random_locations(max_num_locations: int, range_x: tuple, range_y: tuple, min_distance: int, max_attempts: int, n_homes: int = None, n_lockers: int = None, n_shops: int = None):
     """
@@ -315,7 +328,7 @@ def __generate_random_locations(max_num_locations: int, range_x: tuple, range_y:
 
 
 
-def __generate_shops(shop_locations: list, depot_location: tuple, depot_tw: tuple, truck_speed: int = 50, tw_duration: int = None):
+def __generate_shops(shop_locations: list, depot_location: tuple, depot_tw: tuple, truck_speed: int = 20, tw_duration: int = None):
     """
     Generates shops.
 
@@ -332,11 +345,10 @@ def __generate_shops(shop_locations: list, depot_location: tuple, depot_tw: tupl
     # some random time windows for shops
     shop_tws = []
 
-    morning_start_times = [540, 600, 630, 660]  # 9:00, 10:00, 10:30, 11:00
-    morning_end_times = [840, 870, 900, 1020]  # 14:00, 14:30, 15:00, 17:00
-    afternoon_start_times = [1020, 1050, 1080]  # 17:00, 17:30, 18:00
-    # 20:30, 21:00, 21:30, 22:00
-    afternoon_end_times = [1230, 1260, 1290, 1320]
+    morning_start_times = [600, 630, 660]  # 10:00, 10:30, 11:00
+    morning_end_times = [840, 870, 900]  # 14:00, 14:30, 15:00
+    afternoon_start_times = [900, 930, 960]  # 15:00, 15:30, 16:00
+    afternoon_end_times = [1020, 1050, 1080] # 17:00, 17:30, 18:00
 
     for i in range(5):
         shop_tws.append(
@@ -389,15 +401,16 @@ def __generate_home_delivery_points(home_locations: list, depot_location: tuple,
     home_delivery_tws = []
 
     if tw_duration is None:
-        morning_start_times = [540, 600, 630, 660]
-        morning_end_times = [840, 870, 900, 1020]
-        afternoon_start_times = [1020, 1050, 1080]
-        afternoon_end_times = [1230, 1260, 1290, 1320]
+        morning_start_times = [600, 630, 660]  # 10:00, 10:30, 11:00
+        morning_end_times = [840, 870, 900]  # 14:00, 14:30, 15:00
+        afternoon_start_times = [900, 930, 960]  # 15:00, 15:30, 16:00
+        afternoon_end_times = [1020, 1050, 1080] # 17:00, 17:30, 18:00
+        
 
         for i in range(8):
             home_delivery_tws.append(f'{random.choice(morning_start_times)},{random.choice(morning_end_times)},{round(random.uniform(0.2, 1.0), 2)}')
             home_delivery_tws.append(f'{random.choice(afternoon_start_times)},{random.choice(afternoon_end_times)},{round(random.uniform(0.2, 1.0), 2)}')
-            home_delivery_tws.append(f'{random.choice(morning_start_times)},{random.choice(morning_end_times)},{round(random.uniform(0.2, 1.0), 2)}; {random.choice(afternoon_start_times)},{random.choice(afternoon_end_times)},{round(random.uniform(0.2, 1.0), 2)}')
+            home_delivery_tws.append(f'{random.choice(morning_start_times)},{random.choice(afternoon_start_times)},{round(random.uniform(0.2, 1.0), 2)}; {random.choice(afternoon_start_times)},{random.choice(afternoon_end_times)},{round(random.uniform(0.2, 1.0), 2)}')
             home_delivery_tws.append(f'{random.choice(morning_start_times)},{random.choice(afternoon_end_times)},{round(random.uniform(0.2, 1.0), 2)}')
 
         for i in range(len(home_locations)):
@@ -405,14 +418,13 @@ def __generate_home_delivery_points(home_locations: list, depot_location: tuple,
             home_delivery_points.append(
                 (f"H{len(home_delivery_points) + 1}", home_locations[i][0], home_locations[i][1], tw_probabilities))
     else:
-        morning_start_times = [540, 570, 600, 630, 660, 690, 720]
-        afternoon_start_times = [840, 870, 900, 960]
-        evening_start_times = [1020, 1050, 1080, 1140]
+        morning_start_times = [600, 630, 660, 690, 720, 780]
+        afternoon_start_times = [840, 870]
 
         if tw_duration < 240:
-            start_times = morning_start_times + afternoon_start_times + evening_start_times
-        else:
             start_times = morning_start_times + afternoon_start_times
+        else:
+            start_times = morning_start_times
 
         for i in range(len(home_locations)):
             time_to_depot = __euclidean_distance(home_locations[i], depot_location) / truck_speed * 60
@@ -443,80 +455,7 @@ def __generate_home_delivery_points(home_locations: list, depot_location: tuple,
     return home_delivery_points
 
 
-def __generate_home_delivery_points1(home_locations: list, depot_location: tuple, depot_tw: tuple, truck_speed: int = 50, tw_duration: int = None):
-    """
-    Generates home delivery points.
 
-    Parameters:
-        home_locations : list
-            List of home delivery point locations.
-
-    Returns:
-        home_delivery_points : list
-            List of home delivery points.
-    """
-
-    # DP_ID	X	Y	TW_PROBABILITIES
-    # H1  25  78  600,840,0.6; 1200,1450,0.4
-    home_delivery_points = []
-    home_delivery_tws = []
-
-    if tw_duration is None:
-        # Random time windows for home delivery points
-        morning_start_times = [540, 600, 630, 660]  # 9:00, 10:00, 10:30, 11:00
-        morning_end_times = [840, 870, 900, 1020]  # 14:00, 14:30, 15:00, 17:00
-        afternoon_start_times = [1020, 1050, 1080]  # 17:00, 17:30, 18:00
-        afternoon_end_times = [1230, 1260, 1290, 1320] # 20:30, 21:00, 21:30, 22:00
-
-        for i in range(8):
-            home_delivery_tws.append(
-                f'{random.choice(morning_start_times)},{random.choice(morning_end_times)},{round(random.uniform(0.2, 1.0), 2)}')
-            home_delivery_tws.append(
-                f'{random.choice(afternoon_start_times)},{random.choice(afternoon_end_times)},{round(random.uniform(0.2, 1.0), 2)}')
-            home_delivery_tws.append(
-                f'{random.choice(morning_start_times)},{random.choice(morning_end_times)},{round(random.uniform(0.2, 1.0), 2)}; {random.choice(afternoon_start_times)},{random.choice(afternoon_end_times)},{round(random.uniform(0.2, 1.0), 2)}')
-            home_delivery_tws.append(
-                f'{random.choice(morning_start_times)},{random.choice(afternoon_end_times)},{round(random.uniform(0.2, 1.0), 2)}')
-
-        for i in range(len(home_locations)):
-            tw_probabilities = random.choice(home_delivery_tws)
-            home_delivery_points.append(
-                (f"H{len(home_delivery_points) + 1}", home_locations[i][0], home_locations[i][1], tw_probabilities))
-    else:
-        # Fixed time windows duration for home delivery points
-        morning_start_times = [540, 570, 600, 630, 660, 690, 720] # 9:00, 9:30, 10:00, 10:30, 11:00, 11:30, 12:00
-        afternoon_start_times = [840, 870, 900, 960] # 14:00, 14:30, 15:00, 16:00
-        evening_start_times = [1020, 1050, 1080, 1140] # 17:00, 17:30, 18:00, 19:00
-
-        if tw_duration < 240:
-            start_times = morning_start_times + afternoon_start_times + evening_start_times
-        else:
-            start_times = morning_start_times + afternoon_start_times
-
-        for i in range(len(home_locations)):
-            time_to_depot = __euclidean_distance(home_locations[i], depot_location) / truck_speed * 60
-            start = random.choice(start_times)
-
-            #check if the time window is valid
-            valid_tw = False
-            while not valid_tw:
-                # print(start, tw_duration, time_to_depot, depot_tw[1], depot_location, home_locations[i])
-                # print(start + tw_duration + time_to_depot <= depot_tw[1], time_to_depot <= tw_duration, "\n")
-                if start + tw_duration + time_to_depot <= depot_tw[1] and time_to_depot <= tw_duration:
-                    valid_tw = True
-                else:
-                    start = random.choice(start_times)
-
-            tw_and_prob = f'{start},{start + tw_duration},{round(random.uniform(0.2, 1.0), 2)}'
-
-            home_delivery_points.append(
-                (f"H{len(home_delivery_points) + 1}", home_locations[i][0], home_locations[i][1], tw_and_prob))
-
-    return home_delivery_points
-
-
-
-import time
 
 def __generate_orders(n_orders: int, lockers: list, shops: list, home_delivery_points: list, max_total_lockers: int = 10, max_total_shops: int = 10, problem_type: str = None):
     """
@@ -603,100 +542,6 @@ def __generate_orders(n_orders: int, lockers: list, shops: list, home_delivery_p
         orders.extend(options)
 
     print(f"Órdenes generadas correctamente")
-    return orders
-
-
-
-
-
-#Codigo antiguo
-def __generate_orders1(n_orders: int, lockers: list, shops: list, home_delivery_points: list, problem_type: str = None):
-    """
-    Generates orders.
-
-    Parameters:
-        n_orders : int
-            Number of orders.
-        lockers : list
-            List of lockers.
-        shops : list
-            List of shops.
-        home_delivery_points : list
-            List of home delivery points.
-
-    Returns:
-        orders : list
-            List of orders.
-    """
-
-    # ORDER_ID	WEIGHT	VOLUME	PRIORITY	DP_ID	X	Y	TW_PROBABILITIES
-    orders = []
-    used_hd_points = []
-
-    for i in range(n_orders):
-        order_id = f"O{i + 1}"
-        used_lockers = []
-        used_shops = []
-        has_home_delivery = False
-        has_locker_delivery = False
-        has_shop_delivery = False
-        weight = random.randint(1, 10)
-        volume = random.randint(1, 10)
-
-        if problem_type == 'HL':
-            num_options = 2
-        elif problem_type == 'HLR' or problem_type == '3R' or problem_type == '3H':
-            num_options = 3
-        else:
-            num_options = random.randint(1, 5)
-
-        priority = 1
-        order_dp_ids = []
-        for j in range(num_options):
-
-            if problem_type != None:
-                delivery_type = __select_delivery_type(problem_type, has_home_delivery, has_locker_delivery, has_shop_delivery)
-            else:
-                if has_home_delivery:
-                    delivery_type = random.choice(["L", "S"])
-                else:
-                    delivery_type = random.choice(["L", "S", "H"])
-            x = 0
-            y = 0
-            tw_probabilities = ""
-
-            if delivery_type == "L":
-                dp_id = random.choice(lockers)[0]
-                while (dp_id in used_lockers and len(used_lockers) != len(lockers)) or dp_id in order_dp_ids:
-                    dp_id = random.choice(lockers)[0]
-                if dp_id not in used_lockers:
-                    used_lockers.append(dp_id)
-                orders.append((order_id, weight, volume, priority, dp_id))
-                order_dp_ids.append(dp_id)
-                has_locker_delivery = True
-
-            elif delivery_type == "S":
-                dp_id = random.choice(shops)[0]
-                while (dp_id in used_shops and len(used_shops) != len(shops)) or dp_id in order_dp_ids:
-                    dp_id = random.choice(shops)[0]
-                if dp_id not in used_shops:
-                    used_shops.append(dp_id)
-                orders.append((order_id, weight, volume, priority, dp_id))
-                order_dp_ids.append(dp_id)
-                has_shop_delivery = True
-
-            elif delivery_type == "H":
-                dp_id, x, y, tw_probabilities = random.choice(home_delivery_points)
-                while (dp_id in used_hd_points and len(used_hd_points) != len(home_delivery_points)) or dp_id in order_dp_ids:
-                    dp_id, x, y, tw_probabilities = random.choice(home_delivery_points)
-                if dp_id not in used_hd_points:
-                    used_hd_points.append(dp_id)
-                orders.append((order_id, weight, volume, priority, dp_id, x, y, tw_probabilities))
-                order_dp_ids.append(dp_id)
-                has_home_delivery = True
-
-            priority += 1
-
     return orders
 
 
